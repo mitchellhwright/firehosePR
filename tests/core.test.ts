@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, renameSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, renameSync, rmSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -117,4 +117,13 @@ test('an explicit test inventory cannot be masked by ignored paths', () => {
   ] }, ['special/a.test.ts'], { base: a, head: b, treeDigest: tree });
   assert.deepEqual(p.ignored, []);
   assert.deepEqual(p.lanes.map(lane => lane.id), ['api']);
+});
+
+test('repository CI inventory includes every portable regression file', () => {
+  const root = new URL('../', import.meta.url);
+  const config = configSchema.parse(JSON.parse(readFileSync(new URL('firehosepr.json', root), 'utf8')));
+  const declared = config.lanes.flatMap(lane => lane.tests?.map(test => test.path) ?? []).sort();
+  const actual = ['tests', 'ci/tests'].flatMap(dir => readdirSync(new URL(`${dir}/`, root))
+    .filter(file => file.endsWith('.test.ts')).map(file => `${dir}/${file}`)).sort();
+  assert.deepEqual(declared, actual);
 });
