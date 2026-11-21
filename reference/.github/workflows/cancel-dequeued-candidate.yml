@@ -1,0 +1,41 @@
+# GENERATED from ci/workflows/cancel-dequeued-candidate.ts — edit the source, not this file.
+# Regenerate with: npm run ci:workflows
+
+name: Merge queue candidate cleanup
+on:
+  delete: {}
+permissions:
+  actions: write
+  contents: read
+concurrency:
+  group: 'cancel-dequeued-candidate-${{ github.event.ref }}'
+  cancel-in-progress: false
+env:
+  npm_config_cache: '${RUNNER_TOOL_CACHE}/npm-cache'
+jobs:
+  cancel-dequeued-candidate:
+    name: Cancel dequeued candidate work
+    if: 'github.event.ref_type == ''branch'' && startsWith(github.event.ref, ''gh-readonly-queue/develop/'')'
+    runs-on:
+      - self-hosted
+      - Linux
+      - example-trusted-control
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: '${{ github.event.repository.default_branch }}'
+          persist-credentials: false
+          sparse-checkout: |
+            ci/src
+      - name: Set up Node for typed maintenance
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Cancel the dequeued candidate validation runs
+        env:
+          CI_WORKFLOW_NAMES: 'PR Checks,Test - iOS'
+          GITHUB_TOKEN: '${{ github.token }}'
+        run: node ci/src/actions/cancelDequeuedCandidateRuns.ts

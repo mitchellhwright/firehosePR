@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ONBOARDING_VIDEO_RUN_DIR="$RUNNER_TEMP/onboarding-video-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+{
+  echo "ONBOARDING_VIDEO_RUN_DIR=$ONBOARDING_VIDEO_RUN_DIR"
+  echo "ONBOARDING_E2E_COMPRESSED_VIDEO=$ONBOARDING_VIDEO_RUN_DIR/onboarding-e2e.compressed.mp4"
+  echo "ONBOARDING_E2E_REVIEW_JSON=$ONBOARDING_VIDEO_RUN_DIR/onboarding-video-review.json"
+  echo "ONBOARDING_E2E_REVIEW_MD=$ONBOARDING_VIDEO_RUN_DIR/onboarding-video-review.md"
+} >> "$GITHUB_ENV"
+rm -rf -- "$ONBOARDING_VIDEO_RUN_DIR"
+mkdir -p "$ONBOARDING_VIDEO_RUN_DIR/raw"

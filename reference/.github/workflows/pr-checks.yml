@@ -1,0 +1,783 @@
+# GENERATED from ci/workflows/pr-checks.ts — edit the source, not this file.
+# Regenerate with: npm run ci:workflows
+
+name: PR Checks
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  merge_group:
+    types:
+      - checks_requested
+    branches:
+      - develop
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+concurrency:
+  group: 'pr-checks-${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.number)) || (github.event_name == ''merge_group'' && toJSON(github.ref)) || (github.event_name == ''workflow_dispatch'' && toJSON(github.ref)) || toJSON(''ci-event-field-unavailable'')) }}'
+  cancel-in-progress: true
+env:
+  npm_config_cache: '${RUNNER_TOOL_CACHE}/npm-cache'
+jobs:
+  route-initial-control:
+    name: Route PR planner to available Linux capacity
+    if: ((github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch')
+    runs-on: '${{ fromJson(((github.event_name == ''pull_request'' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == ''merge_group'' || github.event_name == ''workflow_dispatch'') && vars.CI_HOSTED_LINUX_AVAILABLE != ''1'' && ''["self-hosted","Linux","example-trusted-control"]'' || ''["ubuntu-24.04"]'') }}'
+    permissions:
+      actions: read
+      contents: read
+    timeout-minutes: 5
+    outputs:
+      control_runner_labels: '${{ steps.control-route.outputs.control_runner_labels }}'
+    steps:
+      - name: Check out the trusted base gate scripts
+        id: trusted-gate-source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: '${{ github.event.repository.default_branch }}'
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+            ci/src
+      - name: Set up the Node.js runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Route control jobs to free external Linux or hosted overflow
+        id: control-route
+        if: hashFiles('ci/src/actions/selectControlRunners.ts') != ''
+        env:
+          GITHUB_TOKEN: '${{ github.token }}'
+          RUNNER_ENVIRONMENT: '${{ runner.environment }}'
+          SAME_REPOSITORY_CODE: '${{ ((github.event_name == ''pull_request'' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == ''merge_group'' || github.event_name == ''workflow_dispatch'') }}'
+          REPOSITORY_DEFAULT_BRANCH: '${{ github.event.repository.default_branch }}'
+          CI_HOSTED_LINUX_AVAILABLE: '${{ vars.CI_HOSTED_LINUX_AVAILABLE || ''0'' }}'
+        continue-on-error: true
+        run: node ci/src/actions/selectControlRunners.ts
+  plan-pr-validation:
+    name: Plan PR validation
+    needs:
+      - route-initial-control
+    if: always() && !cancelled() && ((github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch')
+    runs-on: '${{ fromJson(needs.route-initial-control.outputs.control_runner_labels || (((github.event_name == ''pull_request'' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == ''merge_group'' || github.event_name == ''workflow_dispatch'') && ''["self-hosted","Linux","example-trusted-control"]'' || ''["ubuntu-24.04"]'')) }}'
+    permissions:
+      actions: write
+      contents: read
+      pull-requests: read
+    timeout-minutes: 15
+    outputs:
+      docs_only: '${{ steps.plan.outputs.docs_only }}'
+      lint_plan: '${{ steps.plan.outputs.lint_plan }}'
+      database_required: '${{ steps.plan.outputs.database_required }}'
+      entitlement_acceptance_required: '${{ steps.plan.outputs.entitlement_acceptance_required }}'
+      metadata_only: '${{ steps.plan.outputs.metadata_only }}'
+      policy_required: '${{ steps.plan.outputs.policy_required }}'
+      workflow_contracts_required: '${{ steps.plan.outputs.workflow_contracts_required }}'
+      server_static_required: '${{ steps.plan.outputs.server_static_required }}'
+      test_only_helpers_to_typecheck: '${{ steps.plan.outputs.test_only_helpers_to_typecheck }}'
+      server_test_mode: '${{ steps.plan.outputs.server_test_mode }}'
+      process_heavy_required: '${{ steps.plan.outputs.process_heavy_required }}'
+      targeted_server_tests: '${{ steps.plan.outputs.targeted_server_tests }}'
+      targeted_integration_tests: '${{ steps.plan.outputs.targeted_integration_tests }}'
+      ios_contracts_required: '${{ steps.plan.outputs.ios_contracts_required }}'
+      pr_linux_runner_labels: '${{ steps.pick.outputs.pr_linux_runner_labels }}'
+      pr_database_runner_labels: '${{ steps.pick.outputs.pr_database_runner_labels }}'
+      pr_linux_overflow_labels: '${{ steps.pick.outputs.pr_linux_overflow_labels }}'
+      control_runner_labels: '${{ needs.route-initial-control.outputs.control_runner_labels }}'
+      trusted_policy_sha: '${{ ((github.event_name == ''pull_request'' && github.event.pull_request.base.ref == ''main'')) && ((github.event_name == ''pull_request'' && github.event.pull_request.head.repo.full_name == github.repository)) && steps.trusted-gate-source.outputs.commit || fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.base.sha)) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.base_sha || ''ci-event-field-unavailable'')) || (github.event_name == ''workflow_dispatch'' && toJSON(github.sha)) || toJSON(''ci-event-field-unavailable'')) }}'
+      reused_lanes: '${{ steps.queue-reuse.outputs.reused_lanes }}'
+      lane_evidence: '${{ steps.queue-reuse.outputs.lane_evidence }}'
+    steps:
+      - name: Check out the trusted base gate scripts
+        id: trusted-gate-source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: '${{ github.event.repository.default_branch }}'
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+            ci/src
+      - name: Setup Node for the typed planner
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Create fallback PR metadata token
+        id: pr-metadata-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        if: '((github.event_name == ''pull_request'' && github.event.pull_request.head.repo.full_name == github.repository)) && github.actor != ''dependabot[bot]'''
+        with:
+          app-id: '${{ secrets.PROMOTION_CHECKPOINT_APP_ID }}'
+          private-key: '${{ secrets.PROMOTION_CHECKPOINT_APP_PRIVATE_KEY }}'
+          permission-contents: read
+          permission-pull-requests: read
+      - name: Checkout base-update classifier
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: '${{ ((github.event_name == ''pull_request'' && github.event.pull_request.base.ref == ''main'')) && ((github.event_name == ''pull_request'' && github.event.pull_request.head.repo.full_name == github.repository)) && steps.trusted-gate-source.outputs.commit || fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.base.sha)) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.base_sha || ''ci-event-field-unavailable'')) || (github.event_name == ''workflow_dispatch'' && toJSON(github.sha)) || toJSON(''ci-event-field-unavailable'')) }}'
+          path: .ci/trusted-base-update
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+            .github/workflows
+            ci
+      - name: Install trusted base-update classifier dependencies
+        if: (github.event_name == 'pull_request')
+        run: npm ci --prefix .ci/trusted-base-update/ci --no-audit --no-fund --ignore-scripts
+      - name: Detect verified incremental head delta
+        id: base-update
+        if: (github.event_name == 'pull_request')
+        env:
+          TRUSTED_CHECKOUT_PATH: .ci/trusted-base-update
+          CONTROLLER_BASE_UPDATE_WORKFLOWS: PR Checks
+          BASE_SHA: '${{ ((github.event_name == ''pull_request'' && github.event.pull_request.base.ref == ''main'')) && ((github.event_name == ''pull_request'' && github.event.pull_request.head.repo.full_name == github.repository)) && steps.trusted-gate-source.outputs.commit || fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.base.sha)) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.base_sha || ''ci-event-field-unavailable'')) || (github.event_name == ''workflow_dispatch'' && toJSON(github.sha)) || toJSON(''ci-event-field-unavailable'')) }}'
+          GITHUB_TOKEN: '${{ github.token }}'
+          GITHUB_FALLBACK_TOKEN: '${{ steps.pr-metadata-token.outputs.token }}'
+        run: node ci/src/actions/ios/runTrustedBaseUpdateClassifier.ts
+      - name: Checkout trusted base workspace
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: '${{ ((github.event_name == ''pull_request'' && github.event.pull_request.base.ref == ''main'')) && ((github.event_name == ''pull_request'' && github.event.pull_request.head.repo.full_name == github.repository)) && steps.trusted-gate-source.outputs.commit || fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.base.sha)) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.base_sha || ''ci-event-field-unavailable'')) || (github.event_name == ''workflow_dispatch'' && toJSON(github.sha)) || toJSON(''ci-event-field-unavailable'')) }}'
+          persist-credentials: false
+      - name: Install typed planner dependencies
+        run: npm ci --prefix ci --no-audit --no-fund --ignore-scripts
+      - name: Cancel runs of superseded merge groups
+        if: (github.event_name == 'merge_group') && hashFiles('ci/src/actions/cancelSupersededMergeGroupRuns.ts') != ''
+        env:
+          CI_WORKFLOW_NAMES: 'PR Checks,Test - iOS'
+          GITHUB_TOKEN: '${{ github.token }}'
+        continue-on-error: true
+        run: node ci/src/actions/cancelSupersededMergeGroupRuns.ts
+      - name: Collect PR change inventory
+        id: inventory
+        env:
+          EVENT_NAME: '${{ github.event_name }}'
+          GITHUB_TOKEN: '${{ github.token }}'
+          GITHUB_FALLBACK_TOKEN: '${{ steps.pr-metadata-token.outputs.token }}'
+          BASE_SHA: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.base.sha)) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.base_sha || ''ci-event-field-unavailable'')) || (github.event_name == ''workflow_dispatch'' && toJSON(github.sha)) || toJSON(''ci-event-field-unavailable'')) }}'
+          HEAD_SHA: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.head.sha)) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.head_sha || ''ci-event-field-unavailable'')) || (github.event_name == ''workflow_dispatch'' && toJSON(github.sha)) || toJSON(''ci-event-field-unavailable'')) }}'
+          PR_NUMBER: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.number)) || (github.event_name == ''merge_group'' && toJSON('''')) || (github.event_name == ''workflow_dispatch'' && toJSON('''')) || toJSON(''ci-event-field-unavailable'')) }}'
+          MERGE_GROUP_REF: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON('''')) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.head_ref)) || (github.event_name == ''workflow_dispatch'' && toJSON('''')) || toJSON(''ci-event-field-unavailable'')) }}'
+          REPOSITORY: '${{ github.repository }}'
+          DELETED_FILES_INVENTORY_FILE: '${{ runner.temp }}/pr-inventory-deleted-files.txt'
+          CONTROLLER_BASE_UPDATE_VALID: '${{ steps.base-update.outputs.valid || ''false'' }}'
+          CONTROLLER_BASE_UPDATE_SUPERSEDED: '${{ steps.base-update.outputs.superseded || ''false'' }}'
+          CONTROLLER_BASE_UPDATE_FILES: '${{ steps.base-update.outputs.changed_files || '''' }}'
+          CONTROLLER_BASE_UPDATE_PATCH_EQUIVALENT: '${{ steps.base-update.outputs.patch_equivalent || ''false'' }}'
+        run: node ci/src/actions/collectPrChangeInventory.ts
+      - name: Detect removed changed files
+        id: deleted
+        if: steps.inventory.outputs.candidate_gone != 'true'
+        env:
+          DELETED_FILES_FILE: '${{ runner.temp }}/pr-deleted-files.txt'
+          METADATA_ONLY: '${{ steps.inventory.outputs.metadata_only }}'
+          CLASSIFIER_INVENTORY_SELECTED: '${{ steps.inventory.outputs.classifier_inventory_selected || ''false'' }}'
+          INCREMENTAL_DELETED_FILES: '${{ steps.base-update.outputs.deleted_files || '''' }}'
+          FILE_STATUS_INVENTORY_VERIFIED: '${{ steps.inventory.outputs.file_status_inventory_verified || ''false'' }}'
+          DELETED_FILES_INVENTORY_FILE: '${{ runner.temp }}/pr-inventory-deleted-files.txt'
+        run: node ci/src/actions/selectPrDeletionInventory.ts
+      - name: Load exact-head server test runtime contracts
+        if: steps.inventory.outputs.candidate_gone != 'true'
+        env:
+          CHANGED_FILES_FILE: '${{ runner.temp }}/pr-changed-files.txt'
+          DELETED_FILES_FILE: '${{ runner.temp }}/pr-deleted-files.txt'
+          GITHUB_FALLBACK_TOKEN: '${{ steps.pr-metadata-token.outputs.token }}'
+          GITHUB_TOKEN: '${{ github.token }}'
+          BASE_REPOSITORY: '${{ github.repository }}'
+          HEAD_SHA: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.head.sha)) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.head_sha || ''ci-event-field-unavailable'')) || (github.event_name == ''workflow_dispatch'' && toJSON(github.sha)) || toJSON(''ci-event-field-unavailable'')) }}'
+          METADATA_ONLY: '${{ steps.inventory.outputs.metadata_only }}'
+          PR_NUMBER: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.number)) || (github.event_name == ''merge_group'' && toJSON('''')) || (github.event_name == ''workflow_dispatch'' && toJSON('''')) || toJSON(''ci-event-field-unavailable'')) }}'
+          MERGE_GROUP_REF: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON('''')) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.head_ref)) || (github.event_name == ''workflow_dispatch'' && toJSON('''')) || toJSON(''ci-event-field-unavailable'')) }}'
+          RUNTIME_CONTRACT_PATH: ci/contracts/server-test-runtimes.json
+          RUNTIME_CONTRACT_OUTPUT: '${{ runner.temp }}/server-test-runtimes.json'
+        run: node ci/src/actions/loadPrRuntimeManifest.ts
+      - name: Select required validation lanes
+        id: plan
+        if: steps.inventory.outputs.candidate_gone != 'true'
+        env:
+          INPUT_CHANGED_FILES_FILE: '${{ runner.temp }}/pr-changed-files.txt'
+          INPUT_DELETED_FILES_FILE: '${{ runner.temp }}/pr-deleted-files.txt'
+          INPUT_BASE_DELTA_ROUTE: '${{ steps.base-update.outputs.base_delta_route || '''' }}'
+          INPUT_PULL_REQUEST_FILES: '${{ steps.base-update.outputs.pull_request_files || '''' }}'
+          INPUT_PULL_REQUEST_DELETED_FILES: '${{ steps.base-update.outputs.pull_request_deleted_files || '''' }}'
+          INPUT_FILE_STATUS_AVAILABLE: '${{ steps.deleted.outputs.file_status_available }}'
+          INPUT_METADATA_ONLY: '${{ steps.inventory.outputs.metadata_only }}'
+          INPUT_TEST_RUNTIME_CONTRACTS_FILE: '${{ runner.temp }}/server-test-runtimes.json'
+          INPUT_EVENT_NAME: '${{ github.event_name }}'
+          INPUT_BASE_BRANCH: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.base.ref)) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.base_ref == ''refs/heads/develop'' && ''develop'' || ''ci-event-field-unavailable'')) || (github.event_name == ''workflow_dispatch'' && toJSON('''')) || toJSON(''ci-event-field-unavailable'')) }}'
+          INPUT_REPOSITORY: '${{ github.repository }}'
+          INPUT_TRUSTED_SCRIPT_SOURCE_SHA: '${{ ((github.event_name == ''pull_request'' && github.event.pull_request.base.ref == ''main'')) && ((github.event_name == ''pull_request'' && github.event.pull_request.head.repo.full_name == github.repository)) && steps.trusted-gate-source.outputs.commit || fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.base.sha)) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.base_sha || ''ci-event-field-unavailable'')) || (github.event_name == ''workflow_dispatch'' && toJSON(github.sha)) || toJSON(''ci-event-field-unavailable'')) }}'
+          INPUT_HEAD_SHA: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.head.sha)) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.head_sha || ''ci-event-field-unavailable'')) || (github.event_name == ''workflow_dispatch'' && toJSON(github.sha)) || toJSON(''ci-event-field-unavailable'')) }}'
+          INPUT_PR_NUMBER: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.number)) || (github.event_name == ''merge_group'' && toJSON('''')) || (github.event_name == ''workflow_dispatch'' && toJSON('''')) || toJSON(''ci-event-field-unavailable'')) }}'
+          INPUT_MERGE_GROUP_REF: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON('''')) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.head_ref)) || (github.event_name == ''workflow_dispatch'' && toJSON('''')) || toJSON(''ci-event-field-unavailable'')) }}'
+          INPUT_GITHUB_TOKEN: '${{ github.token }}'
+          INPUT_GITHUB_FALLBACK_TOKEN: '${{ steps.pr-metadata-token.outputs.token }}'
+        run: node ci/src/actions/planPrValidation.ts
+      - name: Explain financial calculation assurance
+        if: steps.inventory.outputs.candidate_gone != 'true'
+        env:
+          ASSURANCE_MODE: '${{ steps.plan.outputs.calculation_assurance_mode }}'
+          ASSURANCE_PACKAGES: '${{ steps.plan.outputs.calculation_assurance_packages }}'
+          ASSURANCE_GAPS: '${{ steps.plan.outputs.calculation_assurance_gaps }}'
+          INDEPENDENT_AUDIT_REQUIRED: '${{ steps.plan.outputs.calculation_assurance_independent_audit_required }}'
+        run: node ci/src/actions/explainCalculationAssurance.ts
+      - name: Select free external capacity or hosted overflow
+        id: pick
+        if: steps.inventory.outputs.candidate_gone != 'true' && steps.plan.outputs.docs_only != 'true'
+        env:
+          GITHUB_TOKEN: '${{ github.token }}'
+          EVENT_NAME: '${{ github.event_name }}'
+          PR_HEAD_REPOSITORY: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.head.repo.full_name)) || (github.event_name == ''merge_group'' && toJSON(github.repository)) || (github.event_name == ''workflow_dispatch'' && toJSON('''')) || toJSON(''ci-event-field-unavailable'')) }}'
+          REPOSITORY_DEFAULT_BRANCH: '${{ github.event.repository.default_branch }}'
+          PR_PORTABLE_RUNNER_LABELS: '${{ vars.PR_PORTABLE_RUNNER_LABELS || ''["self-hosted","Linux","example-lane","linux-remote"]'' }}'
+          PR_DATABASE_RUNNER_LABELS: '${{ vars.PR_DATABASE_RUNNER_LABELS || ''["self-hosted","Linux","example-lane","ARM64","docker-capable","linux-remote"]'' }}'
+          DATABASE_REQUIRED: '${{ steps.plan.outputs.database_required }}'
+          CI_HOSTED_LINUX_AVAILABLE: '${{ vars.CI_HOSTED_LINUX_AVAILABLE || ''0'' }}'
+        run: node ci/src/actions/selectPrLinuxRunners.ts
+      - name: Match pull request lane evidence to the queue candidate
+        id: queue-reuse
+        if: (github.event_name == 'merge_group') && steps.inventory.outputs.candidate_gone != 'true' && hashFiles('ci/src/actions/planQueueLaneReuse.ts') != ''
+        env:
+          REPOSITORY: '${{ github.repository }}'
+          GITHUB_TOKEN: '${{ github.token }}'
+          GITHUB_FALLBACK_TOKEN: '${{ steps.pr-metadata-token.outputs.token }}'
+          PLAN_JSON: '${{ steps.plan.outputs.plan_json }}'
+        run: node ci/src/actions/planQueueLaneReuse.ts
+  lint:
+    name: Lint changed code
+    needs:
+      - plan-pr-validation
+    if: ((github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch') && needs.plan-pr-validation.result == 'success' && needs.plan-pr-validation.outputs.docs_only != 'true'
+    runs-on: '${{ fromJson(needs.plan-pr-validation.outputs.pr_linux_overflow_labels) }}'
+    timeout-minutes: 10
+    steps:
+      - name: Checkout the workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up the Node.js runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Compute the dependency cache key
+        id: node-modules-key
+        if: runner.environment == 'github-hosted'
+        run: node ci/src/actions/nodeModulesCacheKey.ts
+      - name: Restore cached Node.js dependencies
+        id: node-modules-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: runner.environment == 'github-hosted'
+        with:
+          path: node_modules
+          key: '${{ steps.node-modules-key.outputs.key }}'
+      - name: Install Node.js dependencies
+        env:
+          RUNNER_ENVIRONMENT: '${{ runner.environment }}'
+          NODE_MODULES_CACHE_HIT: '${{ steps.node-modules-restore.outputs.cache-hit }}'
+        run: node ci/src/actions/installNodeDependencies.ts
+      - name: Lint selected PR code
+        if: 'fromJSON(needs.plan-pr-validation.outputs.lint_plan || ''{"mode":"full","paths":[]}'').mode != ''none'''
+        env:
+          PR_LINT_PLAN: '${{ needs.plan-pr-validation.outputs.lint_plan || ''{"mode":"full","paths":[]}'' }}'
+        run: node ci/src/actions/runSelectedLint.ts
+      - name: Verify Linux lane documentation inputs
+        run: node --test ci/tests/linuxLaneDocumentationInputs.test.ts
+  validation-policy:
+    name: Evaluate PR validation policy
+    needs:
+      - plan-pr-validation
+    if: needs.plan-pr-validation.outputs.metadata_only != 'true' && needs.plan-pr-validation.outputs.policy_required == 'true'
+    runs-on: '${{ fromJson(needs.plan-pr-validation.outputs.control_runner_labels || (((github.event_name == ''pull_request'' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == ''merge_group'' || github.event_name == ''workflow_dispatch'') && ''["self-hosted","Linux","example-trusted-control"]'' || ''["ubuntu-24.04"]'')) }}'
+    timeout-minutes: 5
+    steps:
+      - name: Checkout the workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up the Node.js runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Install typed CI dependencies
+        run: npm ci --prefix ci --no-audit --no-fund --ignore-scripts
+      - name: Validate debt dependency preflight
+        id: debt-preflight
+        uses: ./.github/actions/typed-step-runner
+        env:
+          EXAMPLE_STEP_NAME: Validate debt dependency preflight
+          EXAMPLE_STEP_OWNER: product
+          EXAMPLE_STEP_NEXT_ACTION: read the preflight output; it names the ticket or dependency that is unsatisfied
+          GITHUB_TOKEN: '${{ github.token }}'
+          DEBT_PREFLIGHT_OUTPUT: '${{ runner.temp }}/debt-preflight-${{ github.run_id }}-${{ github.run_attempt }}'
+        with:
+          entry: ci/src/actions/debt/runDebtDependencyPreflight.ts
+      - name: Retain debt dependency evidence
+        id: upload-debt-preflight
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always() && steps.debt-preflight.outcome == 'failure'
+        continue-on-error: true
+        with:
+          name: 'debt-preflight-${{ github.run_id }}-${{ github.run_attempt }}'
+          path: '${{ runner.temp }}/debt-preflight-${{ github.run_id }}-${{ github.run_attempt }}'
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Preserve debt evidence when artifact storage is unavailable
+        uses: ./.github/actions/typed-step-runner
+        if: always() && steps.upload-debt-preflight.outcome == 'failure'
+        env:
+          EXAMPLE_STEP_NAME: Preserve debt evidence when artifact storage is unavailable
+          EXAMPLE_STEP_OWNER: automation
+          EXAMPLE_STEP_NEXT_ACTION: read the summary section it wrote; the upload failure itself is not fatal
+          EXAMPLE_SUMMARY_TITLE: Debt dependency evidence
+        with:
+          entry: ci/src/actions/debt/preserveDebtEvidence.ts
+  workflow-contracts:
+    name: Workflow contracts
+    needs:
+      - plan-pr-validation
+    if: 'needs.plan-pr-validation.outputs.workflow_contracts_required == ''true'' && !contains(fromJSON(needs.plan-pr-validation.outputs.reused_lanes || ''[]''), ''workflow-contracts'')'
+    runs-on: '${{ fromJson(needs.plan-pr-validation.outputs.pr_linux_runner_labels) }}'
+    timeout-minutes: 10
+    steps:
+      - name: Checkout the workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up the Node.js runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Install pinned workflow linters
+        run: node ci/src/actions/installWorkflowLinters.ts
+      - name: Validate typed CI contracts
+        run: 'npm run ci:check -- --workflow-contracts'
+  server-static:
+    name: Server static validation
+    needs:
+      - plan-pr-validation
+    if: 'needs.plan-pr-validation.outputs.server_static_required == ''true'' && !contains(fromJSON(needs.plan-pr-validation.outputs.reused_lanes || ''[]''), ''server-static'')'
+    runs-on: '${{ fromJson(needs.plan-pr-validation.outputs.pr_linux_runner_labels) }}'
+    timeout-minutes: 10
+    steps:
+      - name: Checkout the workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up the Node.js runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Compute the dependency cache key
+        id: node-modules-key
+        if: runner.environment == 'github-hosted'
+        run: node ci/src/actions/nodeModulesCacheKey.ts
+      - name: Restore cached Node.js dependencies
+        id: node-modules-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: runner.environment == 'github-hosted'
+        with:
+          path: node_modules
+          key: '${{ steps.node-modules-key.outputs.key }}'
+      - name: Install Node.js dependencies
+        env:
+          RUNNER_ENVIRONMENT: '${{ runner.environment }}'
+          NODE_MODULES_CACHE_HIT: '${{ steps.node-modules-restore.outputs.cache-hit }}'
+        run: node ci/src/actions/installNodeDependencies.ts
+      - name: Validate error envelopes
+        run: 'npm run security:error-envelopes'
+      - name: Validate generated type files
+        run: 'npm run validate:generated-types'
+      - name: Check real-server lane inputs
+        run: 'npm run ci:server-lane-inputs:check'
+      - name: Check TypeScript types
+        run: npm run type-check
+      - name: Type-check changed server test helpers
+        if: 'needs.plan-pr-validation.outputs.test_only_helpers_to_typecheck != '''' && needs.plan-pr-validation.outputs.test_only_helpers_to_typecheck != ''[]'''
+        env:
+          TEST_ONLY_HELPERS_JSON: '${{ needs.plan-pr-validation.outputs.test_only_helpers_to_typecheck }}'
+        run: node ci/src/actions/typecheckChangedTestHelpers.ts
+  server-process-tests:
+    name: Server process-heavy tests
+    needs:
+      - plan-pr-validation
+    if: '(needs.plan-pr-validation.outputs.process_heavy_required == ''true'' || needs.plan-pr-validation.outputs.server_test_mode == ''full'') && !contains(fromJSON(needs.plan-pr-validation.outputs.reused_lanes || ''[]''), ''server-process-tests'')'
+    runs-on: '${{ fromJson(needs.plan-pr-validation.outputs.pr_linux_runner_labels) }}'
+    timeout-minutes: 10
+    steps:
+      - name: Checkout the workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up the Node.js runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Compute the dependency cache key
+        id: node-modules-key
+        if: runner.environment == 'github-hosted'
+        run: node ci/src/actions/nodeModulesCacheKey.ts
+      - name: Restore cached Node.js dependencies
+        id: node-modules-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: runner.environment == 'github-hosted'
+        with:
+          path: node_modules
+          key: '${{ steps.node-modules-key.outputs.key }}'
+      - name: Install Node.js dependencies
+        env:
+          RUNNER_ENVIRONMENT: '${{ runner.environment }}'
+          NODE_MODULES_CACHE_HIT: '${{ steps.node-modules-restore.outputs.cache-hit }}'
+        run: node ci/src/actions/installNodeDependencies.ts
+      - name: Run server process-heavy tests
+        run: 'npm run test:process-heavy'
+  server-tests:
+    name: 'Server tests (${{ matrix.shard }}/4)'
+    needs:
+      - plan-pr-validation
+    if: 'needs.plan-pr-validation.outputs.server_test_mode == ''full'' && !contains(fromJSON(needs.plan-pr-validation.outputs.reused_lanes || ''[]''), ''server-tests'')'
+    runs-on: '${{ fromJson(needs.plan-pr-validation.outputs.pr_linux_overflow_labels) }}'
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        shard:
+          - 1
+          - 2
+          - 3
+          - 4
+      fail-fast: false
+    steps:
+      - name: Checkout the workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Set up the Node.js runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Compute the dependency cache key
+        id: node-modules-key
+        if: runner.environment == 'github-hosted'
+        run: node ci/src/actions/nodeModulesCacheKey.ts
+      - name: Restore cached Node.js dependencies
+        id: node-modules-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: runner.environment == 'github-hosted'
+        with:
+          path: node_modules
+          key: '${{ steps.node-modules-key.outputs.key }}'
+      - name: Install Node.js dependencies
+        env:
+          RUNNER_ENVIRONMENT: '${{ runner.environment }}'
+          NODE_MODULES_CACHE_HIT: '${{ steps.node-modules-restore.outputs.cache-hit }}'
+        run: node ci/src/actions/installNodeDependencies.ts
+      - name: Capture server shard execution inputs
+        id: capture-shard-inputs
+        if: (github.event_name == 'pull_request')
+        env:
+          RECEIPT_DIRECTORY: '${{ runner.temp }}/linux-shard-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}'
+          PR_NUMBER: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.number)) || (github.event_name == ''merge_group'' && toJSON('''')) || (github.event_name == ''workflow_dispatch'' && toJSON('''')) || toJSON(''ci-event-field-unavailable'')) }}'
+          PR_BASE_SHA: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.base.sha)) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.base_sha || ''ci-event-field-unavailable'')) || (github.event_name == ''workflow_dispatch'' && toJSON(github.sha)) || toJSON(''ci-event-field-unavailable'')) }}'
+          PR_HEAD_SHA: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.head.sha)) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.head_sha || ''ci-event-field-unavailable'')) || (github.event_name == ''workflow_dispatch'' && toJSON(github.sha)) || toJSON(''ci-event-field-unavailable'')) }}'
+          PR_HEAD_REPOSITORY: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.head.repo.full_name)) || (github.event_name == ''merge_group'' && toJSON(github.repository)) || (github.event_name == ''workflow_dispatch'' && toJSON('''')) || toJSON(''ci-event-field-unavailable'')) }}'
+          SHARD: '${{ matrix.shard }}'
+          RECEIPT_WORKFLOW_SHA: '${{ github.workflow_sha }}'
+          RECEIPT_RUNNER_ENVIRONMENT: '${{ runner.environment }}'
+          RECEIPT_PHASE: prepare
+        continue-on-error: true
+        run: node ci/src/actions/recordLinuxShardReceipt.ts
+      - name: Run server test shard
+        id: native-shard
+        run: 'node ci/src/actions/runLinuxCoverageShard.ts ${{ matrix.shard }}'
+      - name: Record successful server shard receipt
+        id: complete-shard-receipt
+        if: success() && steps.native-shard.outcome == 'success' && steps.capture-shard-inputs.outcome == 'success'
+        env:
+          RECEIPT_DIRECTORY: '${{ runner.temp }}/linux-shard-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}'
+          PR_NUMBER: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.number)) || (github.event_name == ''merge_group'' && toJSON('''')) || (github.event_name == ''workflow_dispatch'' && toJSON('''')) || toJSON(''ci-event-field-unavailable'')) }}'
+          PR_BASE_SHA: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.base.sha)) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.base_sha || ''ci-event-field-unavailable'')) || (github.event_name == ''workflow_dispatch'' && toJSON(github.sha)) || toJSON(''ci-event-field-unavailable'')) }}'
+          PR_HEAD_SHA: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.head.sha)) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.head_sha || ''ci-event-field-unavailable'')) || (github.event_name == ''workflow_dispatch'' && toJSON(github.sha)) || toJSON(''ci-event-field-unavailable'')) }}'
+          PR_HEAD_REPOSITORY: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.head.repo.full_name)) || (github.event_name == ''merge_group'' && toJSON(github.repository)) || (github.event_name == ''workflow_dispatch'' && toJSON('''')) || toJSON(''ci-event-field-unavailable'')) }}'
+          SHARD: '${{ matrix.shard }}'
+          RECEIPT_WORKFLOW_SHA: '${{ github.workflow_sha }}'
+          RECEIPT_RUNNER_ENVIRONMENT: '${{ runner.environment }}'
+          RECEIPT_PHASE: complete
+          SHARD_OUTCOME: '${{ steps.native-shard.outcome }}'
+        continue-on-error: true
+        run: node ci/src/actions/recordLinuxShardReceipt.ts
+  targeted-server-tests:
+    name: Targeted server tests
+    needs:
+      - plan-pr-validation
+    if: 'needs.plan-pr-validation.outputs.server_test_mode == ''targeted'' && !contains(fromJSON(needs.plan-pr-validation.outputs.reused_lanes || ''[]''), ''targeted-server-tests'')'
+    runs-on: '${{ fromJson(needs.plan-pr-validation.outputs.pr_linux_runner_labels) }}'
+    timeout-minutes: 10
+    steps:
+      - name: Checkout the workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up the Node.js runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Compute the dependency cache key
+        id: node-modules-key
+        if: runner.environment == 'github-hosted'
+        run: node ci/src/actions/nodeModulesCacheKey.ts
+      - name: Restore cached Node.js dependencies
+        id: node-modules-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: runner.environment == 'github-hosted'
+        with:
+          path: node_modules
+          key: '${{ steps.node-modules-key.outputs.key }}'
+      - name: Install Node.js dependencies
+        env:
+          RUNNER_ENVIRONMENT: '${{ runner.environment }}'
+          NODE_MODULES_CACHE_HIT: '${{ steps.node-modules-restore.outputs.cache-hit }}'
+        run: node ci/src/actions/installNodeDependencies.ts
+      - name: Run changed server tests
+        env:
+          TARGETED_SERVER_TESTS_JSON: '${{ needs.plan-pr-validation.outputs.targeted_server_tests }}'
+          TARGETED_TEST_RESULTS_FILE: '${{ runner.temp }}/targeted-server-results.json'
+          RUN_HTTP_TESTS: 'true'
+        run: node ci/src/actions/runTargetedServerTests.ts
+  ios-contracts:
+    name: iOS-server contracts
+    needs:
+      - plan-pr-validation
+    if: 'needs.plan-pr-validation.outputs.ios_contracts_required == ''true'' && !contains(fromJSON(needs.plan-pr-validation.outputs.reused_lanes || ''[]''), ''ios-contracts'')'
+    runs-on: '${{ fromJson(needs.plan-pr-validation.outputs.pr_linux_runner_labels) }}'
+    timeout-minutes: 10
+    steps:
+      - name: Checkout the workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up the Node.js runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Compute the dependency cache key
+        id: node-modules-key
+        if: runner.environment == 'github-hosted'
+        run: node ci/src/actions/nodeModulesCacheKey.ts
+      - name: Restore cached Node.js dependencies
+        id: node-modules-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: runner.environment == 'github-hosted'
+        with:
+          path: node_modules
+          key: '${{ steps.node-modules-key.outputs.key }}'
+      - name: Install Node.js dependencies
+        env:
+          RUNNER_ENVIRONMENT: '${{ runner.environment }}'
+          NODE_MODULES_CACHE_HIT: '${{ steps.node-modules-restore.outputs.cache-hit }}'
+        run: node ci/src/actions/installNodeDependencies.ts
+      - name: Run iOS-server contract tests
+        run: npx vitest run --config server/vitest.config.ts server/tests/*Contract.test.ts server/tests/*TypesSync.test.ts server/tests/budgetRequestTypes.test.ts server/tests/budgetCategoryEnums.test.ts server/tests/chatDataTypeRegistry.test.ts server/tests/dashboardGeneratedTypes.test.ts
+      - name: Test dashboard manual account generation
+        run: node --test ci/tests/dashboardManualAccountGeneration.test.ts
+  validate:
+    name: Validate pull request changes
+    needs:
+      - plan-pr-validation
+      - lint
+      - validation-policy
+      - workflow-contracts
+      - server-static
+      - server-process-tests
+      - server-tests
+      - targeted-server-tests
+      - ios-contracts
+      - database-integration
+    if: always() && !cancelled() && ((github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch')
+    runs-on: '${{ fromJson(needs.plan-pr-validation.outputs.control_runner_labels || (((github.event_name == ''pull_request'' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == ''merge_group'' || github.event_name == ''workflow_dispatch'') && ''["self-hosted","Linux","example-trusted-control"]'' || ''["ubuntu-24.04"]'')) }}'
+    timeout-minutes: 3
+    steps:
+      - name: Check out the typed validation verdict
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: '${{ needs.plan-pr-validation.outputs.trusted_policy_sha || fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.base.sha)) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.base_sha || ''ci-event-field-unavailable'')) || (github.event_name == ''workflow_dispatch'' && toJSON(github.sha)) || toJSON(''ci-event-field-unavailable'')) }}'
+          persist-credentials: false
+          sparse-checkout: |
+            ci/src
+      - name: Setup Node for the typed validation verdict
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Require every selected validation lane
+        env:
+          PR_VALIDATION_PLAN: '${{ needs.plan-pr-validation.result }}'
+          LINT: '${{ needs.lint.result }}'
+          LINT_PLAN: '${{ needs.plan-pr-validation.outputs.lint_plan || ''{"mode":"full","paths":[]}'' }}'
+          POLICY: '${{ needs.validation-policy.result }}'
+          WORKFLOW_CONTRACTS: '${{ needs.workflow-contracts.result }}'
+          SERVER_STATIC: '${{ needs.server-static.result }}'
+          SERVER_PROCESS_TESTS: '${{ needs.server-process-tests.result }}'
+          SERVER_TESTS: '${{ needs.server-tests.result }}'
+          TARGETED_SERVER_TESTS: '${{ needs.targeted-server-tests.result }}'
+          IOS_CONTRACTS: '${{ needs.ios-contracts.result }}'
+          DATABASE: '${{ needs.database-integration.result }}'
+          DOCS_ONLY: '${{ needs.plan-pr-validation.outputs.docs_only }}'
+          METADATA_ONLY: '${{ needs.plan-pr-validation.outputs.metadata_only }}'
+          POLICY_REQUIRED: '${{ needs.plan-pr-validation.outputs.policy_required }}'
+          WORKFLOW_CONTRACTS_REQUIRED: '${{ needs.plan-pr-validation.outputs.workflow_contracts_required }}'
+          SERVER_STATIC_REQUIRED: '${{ needs.plan-pr-validation.outputs.server_static_required }}'
+          SERVER_TEST_MODE: '${{ needs.plan-pr-validation.outputs.server_test_mode }}'
+          PROCESS_HEAVY_REQUIRED: '${{ needs.plan-pr-validation.outputs.process_heavy_required }}'
+          IOS_CONTRACTS_REQUIRED: '${{ needs.plan-pr-validation.outputs.ios_contracts_required }}'
+          DATABASE_REQUIRED: '${{ needs.plan-pr-validation.outputs.database_required }}'
+          REUSED_LANES: '${{ needs.plan-pr-validation.outputs.reused_lanes || ''[]'' }}'
+          LANE_EVIDENCE: '${{ needs.plan-pr-validation.outputs.lane_evidence }}'
+          EVENT_NAME: '${{ github.event_name }}'
+          REPOSITORY: '${{ github.repository }}'
+          PR_NUMBER: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.number)) || (github.event_name == ''merge_group'' && toJSON('''')) || (github.event_name == ''workflow_dispatch'' && toJSON('''')) || toJSON(''ci-event-field-unavailable'')) }}'
+          PR_HEAD_SHA: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.head.sha)) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.head_sha || ''ci-event-field-unavailable'')) || (github.event_name == ''workflow_dispatch'' && toJSON(github.sha)) || toJSON(''ci-event-field-unavailable'')) }}'
+          PR_BASE_SHA: '${{ fromJSON((github.event_name == ''pull_request'' && toJSON(github.event.pull_request.base.sha)) || (github.event_name == ''merge_group'' && toJSON(github.event.merge_group.base_sha || ''ci-event-field-unavailable'')) || (github.event_name == ''workflow_dispatch'' && toJSON(github.sha)) || toJSON(''ci-event-field-unavailable'')) }}'
+          TESTED_MERGE_SHA: '${{ github.sha }}'
+          WORKFLOW_SHA: '${{ github.workflow_sha }}'
+          RUN_ID: '${{ github.run_id }}'
+          RUN_ATTEMPT: '${{ github.run_attempt }}'
+          TARGETED_SERVER_TESTS_PLAN: '${{ needs.plan-pr-validation.outputs.targeted_server_tests }}'
+          TARGETED_INTEGRATION_TESTS_PLAN: '${{ needs.plan-pr-validation.outputs.targeted_integration_tests }}'
+          ENTITLEMENT_ACCEPTANCE_REQUIRED: '${{ needs.plan-pr-validation.outputs.entitlement_acceptance_required }}'
+          TEST_ONLY_HELPERS_PLAN: '${{ needs.plan-pr-validation.outputs.test_only_helpers_to_typecheck }}'
+        run: node ci/src/actions/requireSelectedValidationLanes.ts
+  database-integration:
+    name: Run database integration tests
+    needs:
+      - plan-pr-validation
+    if: 'needs.plan-pr-validation.outputs.docs_only != ''true'' && needs.plan-pr-validation.outputs.database_required == ''true'' && !contains(fromJSON(needs.plan-pr-validation.outputs.reused_lanes || ''[]''), ''database-integration'')'
+    runs-on: '${{ fromJson(needs.plan-pr-validation.outputs.pr_database_runner_labels) }}'
+    timeout-minutes: 20
+    steps:
+      - name: Check out the database container scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/actions/typed-step-runner
+            ci/src
+      - name: Set up the Node.js runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Ensure container engine
+        id: container-engine
+        uses: ./.github/actions/typed-step-runner
+        env:
+          EXAMPLE_STEP_NAME: Ensure container engine
+          EXAMPLE_STEP_OWNER: infrastructure
+          EXAMPLE_STEP_NEXT_ACTION: the runner has no engine and cannot install one; route the lane to a Docker host
+        with:
+          entry: ci/src/actions/ensureContainerEngine.ts
+      - name: Start isolated PostgreSQL
+        uses: ./.github/actions/typed-step-runner
+        env:
+          EXAMPLE_STEP_NAME: Start isolated PostgreSQL
+          EXAMPLE_STEP_OWNER: infrastructure
+          EXAMPLE_STEP_NEXT_ACTION: read the engine error; a port or name collision means a previous run left a container
+        with:
+          entry: ci/src/actions/startIsolatedPostgresql.ts
+      - name: Checkout the workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Compute the dependency cache key
+        id: node-modules-key
+        if: runner.environment == 'github-hosted'
+        run: node ci/src/actions/nodeModulesCacheKey.ts
+      - name: Restore cached Node.js dependencies
+        id: node-modules-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: runner.environment == 'github-hosted'
+        with:
+          path: node_modules
+          key: '${{ steps.node-modules-key.outputs.key }}'
+      - name: Install Node.js dependencies
+        env:
+          RUNNER_ENVIRONMENT: '${{ runner.environment }}'
+          NODE_MODULES_CACHE_HIT: '${{ steps.node-modules-restore.outputs.cache-hit }}'
+        run: node ci/src/actions/installNodeDependencies.ts
+      - name: Await PostgreSQL health
+        run: node ci/src/actions/awaitPostgresqlHealth.ts
+      - name: Test Plaid scheduler leases in isolated PostgreSQL
+        shell: bash
+        run: PLAID_SCHEDULER_TEST_DATABASE_URL="$DATABASE_URL" npx vitest run --config server/vitest.config.ts server/tests/plaidSchedulerLeasePostgres.integration.test.ts
+      - name: Verify Wellness migrations and event round trips without skips
+        uses: ./.github/actions/typed-step-runner
+        env:
+          EXAMPLE_STEP_NAME: Verify Wellness migrations and event round trips without skips
+          EXAMPLE_STEP_OWNER: product
+          EXAMPLE_STEP_NEXT_ACTION: a skipped or empty suite is the failure; read which file collected no tests
+        with:
+          entry: ci/src/actions/verifyWellnessDatabases.ts
+      - name: Apply Drizzle migrations
+        run: 'npm run db:migrate'
+      - name: Verify Plaid scheduler schema
+        run: 'npm run db:verify-plaid-scheduler'
+      - name: Prove Plaid scheduler verifier rejects schema drift
+        run: node ci/src/actions/provePlaidSchedulerSchemaDrift.ts
+      - name: Test distributed database state
+        uses: ./.github/actions/typed-step-runner
+        env:
+          EXAMPLE_STEP_NAME: Test distributed database state
+          EXAMPLE_STEP_OWNER: product
+          EXAMPLE_STEP_NEXT_ACTION: a skipped or empty suite is the failure; read which file collected no tests
+        with:
+          entry: ci/src/actions/testDistributedDatabaseState.ts
+      - name: Prepare conversation runtime SQL database
+        uses: ./.github/actions/typed-step-runner
+        env:
+          EXAMPLE_STEP_NAME: Prepare conversation runtime SQL database
+          EXAMPLE_STEP_OWNER: infrastructure
+          EXAMPLE_STEP_NEXT_ACTION: read the psql error; a create failure means the container is no longer healthy
+        with:
+          entry: ci/src/actions/prepareConversationRuntimeDatabases.ts
+      - name: Run selected database acceptance tests
+        if: 'needs.plan-pr-validation.outputs.targeted_integration_tests != ''[]'' || needs.plan-pr-validation.outputs.entitlement_acceptance_required == ''true'''
+        env:
+          TARGETED_SERVER_TESTS_JSON: '${{ needs.plan-pr-validation.outputs.targeted_integration_tests }}'
+          TARGETED_TEST_RESULTS_FILE: '${{ runner.temp }}/targeted-integration-results.json'
+          ENTITLEMENT_ACCEPTANCE_REQUIRED: '${{ needs.plan-pr-validation.outputs.entitlement_acceptance_required }}'
+          ENTITLEMENT_TEST_DATABASE_URL: '${{ env.DATABASE_URL }}'
+          PLAID_SYNC_ATTEMPT_TEST_DATABASE_URL: '${{ env.DATABASE_URL }}'
+          STAGING_QA_FIXTURE_TEST_DATABASE_URL: '${{ env.DATABASE_URL }}'
+          AUTH_CODE_TEST_DATABASE_URL: '${{ env.DATABASE_URL }}'
+          APPLE_AUTH_TEST_DATABASE_URL: '${{ env.DATABASE_URL }}'
+          NOTIFICATION_TEST_DATABASE_URL: '${{ env.DATABASE_URL }}'
+          RUNTIME_POSTGRES_TEST_URL: '${{ env.RUNTIME_POSTGRES_TEST_URL }}'
+          VEHICLE_LINK_TEST_DATABASE_URL: '${{ env.DATABASE_URL }}'
+          REQUIRE_VEHICLE_LINK_POSTGRES_TESTS: '1'
+          MORTGAGE_PLAN_TEST_DATABASE_URL: '${{ env.DATABASE_URL }}'
+          REQUIRE_MORTGAGE_PLAN_POSTGRES_TESTS: '1'
+          RUN_INTEGRATION_TESTS: '1'
+        run: node ci/src/actions/runDatabaseIntegrationValidation.ts
+      - name: Remove PostgreSQL container
+        uses: ./.github/actions/typed-step-runner
+        if: always() && env.DB_CONTAINER_NAME != ''
+        env:
+          EXAMPLE_STEP_NAME: Remove PostgreSQL container
+          EXAMPLE_STEP_OWNER: infrastructure
+          EXAMPLE_STEP_NEXT_ACTION: a leftover container is the failure; remove it on the runner before the next run
+        with:
+          entry: ci/src/actions/removePostgresqlContainer.ts

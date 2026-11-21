@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "maxShards": 4,
+  "globalInputs": ["package.json", "package-lock.json", ".github/", "firehosepr.json"],
+  "ignoredPaths": [],
+  "lanes": [{"id": "tests", "inputs": ["src/", "tests/"], "command": ["npm", "test"]}]
+}

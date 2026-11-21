@@ -1,0 +1,133 @@
+{
+  "schema": "example.server-test-runtimes.v1",
+  "tests": [
+    {
+      "path": "server/tests/activeConditionCompleteness.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/adminAuthorization.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/aiCategorizationService.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/aiUnlinkedAccounts.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/alerts.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/appleAuthorization.postgres.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/chatMessageRating.postgres.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/contributionConsistency.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/conversationRuntimeSql.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/creditCardAlertHistory.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/dashboardCardRecommendations.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/dashboardCashflowEndpoints.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/dashboardCoverageItemHydration.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/durableChatPendingState.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/getHomeSaleEstimate.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/installmentDueObservationPostgres.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/integration/budgetCategoryDeletionPersistence.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/investmentAccountDetails.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/investmentHoldingsSnapshotsPostgres.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/mortgagePlanConfirmation.postgres.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/notificationEvaluationPostgres.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/notificationReportingPostgres.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/plaidAccountDeduplication.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/plaidReconnectRecovery.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/plaidTransactionWindowPostgres.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/profilePreparationDatabase.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/schema/creditLimits.schema.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/spendingSnapshotObligations.postgres.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/typedSelectRaw.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/vehicleLoanAssignmentPostgres.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/webChatActionEndpoints.integration.test.ts",
+      "profile": "isolated-postgres"
+    },
+    {
+      "path": "server/tests/wellnessStateRepository.integration.test.ts",
+      "profile": "isolated-postgres"
+    }
+  ]
+}

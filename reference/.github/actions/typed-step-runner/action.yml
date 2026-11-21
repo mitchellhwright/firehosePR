@@ -1,0 +1,13 @@
+# GENERATED from ci/workflows/lib/stepAction.ts — edit the TypeScript source.
+name: Run a typed Example CI step
+description: Run one checked-out TypeScript entrypoint or legacy CI script and report its owner and recovery action.
+inputs:
+  script:
+    description: Repository-relative script under scripts/.
+    required: false
+  entry:
+    description: Repository-relative typechecked entrypoint under ci/src/actions/.
+    required: false
+runs:
+  using: node24
+  main: bundle/index.cjs

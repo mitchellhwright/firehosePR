@@ -1,0 +1,202 @@
+{
+  "schema": "example.ci-migration-parity-fixtures.v1",
+  "fixtures": [
+    {
+      "name": "current-pr-5432-workflow-repair",
+      "source": "https://github.com/example-org/example-app/pull/5432",
+      "legacyIosContractsRequired": true,
+      "legacy": {
+        "adapter": "pr-validation-controller-output.v1",
+        "sourceRunUrl": "https://github.com/example-org/example-app/actions/runs/34896593271",
+        "sourceHeadSha": "b05f05ee8b106dda69b9625c3725bb9932a77d0f",
+        "rawOutput": {
+          "docs_only": "false",
+          "metadata_only": "false",
+          "policy_required": "true",
+          "workflow_contracts_required": "true",
+          "server_static_required": "true",
+          "server_test_mode": "full",
+          "targeted_server_tests": "[]",
+          "targeted_integration_tests": "[]",
+          "database_required": "true",
+          "ios_contracts_required": "true"
+        }
+      },
+      "input": {
+        "changedFiles": [
+          ".github/workflows/install-runner-cleanup-hooks.yml",
+          ".github/workflows/ios-tests.yml",
+          ".github/workflows/refresh-pr-ci-after-base-edit.yml",
+          "scripts/activate-github-actions-runner-environment.sh",
+          "scripts/cancel-blocked-pr-ci.mjs",
+          "scripts/controller-base-update-delta.mjs",
+          "scripts/resume-retained-ios-predecessor.mjs",
+          "scripts/tests/cancel-blocked-pr-ci.test.mjs",
+          "scripts/tests/controller-base-update-delta.test.mjs",
+          "scripts/tests/github-actions-job-completed-hook.test.mjs",
+          "scripts/tests/ios-ci-test-plan-time-budget.test.mjs",
+          "scripts/tests/resume-retained-ios-predecessor.test.mjs",
+          "scripts/tests/workflow-runner-configuration.test.mjs"
+        ],
+        "deletedFiles": [],
+        "fileStatusAvailable": true,
+        "metadataOnly": false
+      },
+      "expected": {
+        "schema": "example.pr-validation-plan.v1",
+        "docsOnly": false,
+        "metadataOnly": false,
+        "policyRequired": true,
+        "workflowContractsRequired": true,
+        "serverStaticRequired": true,
+        "serverTestMode": "full",
+        "applicationTestImpact": true,
+        "processHeavyRequired": true,
+        "targetedServerTests": [],
+        "targetedIntegrationTests": [],
+        "databaseRequired": true,
+        "iosContractsRequired": false,
+        "calculationAssurance": {
+          "schema": "example.calculation-assurance-plan.v1",
+          "mode": "skip",
+          "selectedPackages": [],
+          "independentAuditRequired": false,
+          "targetedTests": [],
+          "gaps": [],
+          "reasons": ["no registered financial calculation package changed"]
+        }
+      }
+    },
+    {
+      "name": "historical-pr-5344-ios-ci-repair",
+      "source": "https://github.com/example-org/example-app/pull/5344",
+      "legacyIosContractsRequired": true,
+      "legacy": {
+        "adapter": "pr-validation-controller-output.v1",
+        "sourceRunUrl": "https://github.com/example-org/example-app/actions/runs/34882697697",
+        "sourceHeadSha": "4d2c8187fc5ae9a01a469b829fc8cdc89f8242e9",
+        "rawOutput": {
+          "docs_only": "false",
+          "metadata_only": "false",
+          "policy_required": "true",
+          "workflow_contracts_required": "true",
+          "server_static_required": "true",
+          "server_test_mode": "full",
+          "targeted_server_tests": "[]",
+          "targeted_integration_tests": "[]",
+          "database_required": "true",
+          "ios_contracts_required": "true"
+        }
+      },
+      "input": {
+        "changedFiles": [
+          ".github/workflows/ios-tests.yml",
+          "scripts/controller-base-update-delta.mjs",
+          "scripts/prime-ios-paywall-storekit.sh",
+          "scripts/reclaim-ios-runner-disk.sh",
+          "scripts/run-ios-ci-main-tests.sh",
+          "scripts/tests/controller-base-update-delta.test.mjs",
+          "scripts/tests/ios-ci-main-tests.test.mjs",
+          "scripts/tests/ios-paywall-storekit-priming.test.mjs",
+          "scripts/tests/ios-simulator-selection.test.mjs",
+          "scripts/tests/onboarding-simulator-selection.test.mjs"
+        ],
+        "deletedFiles": [],
+        "fileStatusAvailable": true,
+        "metadataOnly": false
+      },
+      "expected": {
+        "schema": "example.pr-validation-plan.v1",
+        "docsOnly": false,
+        "metadataOnly": false,
+        "policyRequired": true,
+        "workflowContractsRequired": true,
+        "serverStaticRequired": true,
+        "serverTestMode": "full",
+        "applicationTestImpact": true,
+        "processHeavyRequired": true,
+        "targetedServerTests": [],
+        "targetedIntegrationTests": [],
+        "databaseRequired": true,
+        "iosContractsRequired": false,
+        "calculationAssurance": {
+          "schema": "example.calculation-assurance-plan.v1",
+          "mode": "skip",
+          "selectedPackages": [],
+          "independentAuditRequired": false,
+          "targetedTests": [],
+          "gaps": [],
+          "reasons": ["no registered financial calculation package changed"]
+        }
+      }
+    },
+    {
+      "name": "single-server-test",
+      "source": "synthetic regression for the targeted-test contract",
+      "input": {
+        "changedFiles": ["server/tests/example.test.ts"],
+        "deletedFiles": [],
+        "fileStatusAvailable": true,
+        "metadataOnly": false
+      },
+      "expected": {
+        "schema": "example.pr-validation-plan.v1",
+        "docsOnly": false,
+        "metadataOnly": false,
+        "policyRequired": true,
+        "workflowContractsRequired": false,
+        "serverStaticRequired": true,
+        "serverTestMode": "targeted",
+        "applicationTestImpact": true,
+        "processHeavyRequired": false,
+        "targetedServerTests": ["server/tests/example.test.ts"],
+        "targetedIntegrationTests": [],
+        "databaseRequired": false,
+        "iosContractsRequired": false,
+        "calculationAssurance": {
+          "schema": "example.calculation-assurance-plan.v1",
+          "mode": "skip",
+          "selectedPackages": [],
+          "independentAuditRequired": false,
+          "targetedTests": [],
+          "gaps": [],
+          "reasons": ["no registered financial calculation package changed"]
+        }
+      }
+    },
+    {
+      "name": "documentation-only",
+      "source": "synthetic regression for the docs-only contract",
+      "input": {
+        "changedFiles": ["docs/ci-architecture.md"],
+        "deletedFiles": [],
+        "fileStatusAvailable": true,
+        "metadataOnly": false
+      },
+      "expected": {
+        "schema": "example.pr-validation-plan.v1",
+        "docsOnly": true,
+        "metadataOnly": false,
+        "policyRequired": true,
+        "workflowContractsRequired": false,
+        "serverStaticRequired": false,
+        "serverTestMode": "none",
+        "applicationTestImpact": false,
+        "processHeavyRequired": false,
+        "targetedServerTests": [],
+        "targetedIntegrationTests": [],
+        "databaseRequired": false,
+        "iosContractsRequired": false,
+        "calculationAssurance": {
+          "schema": "example.calculation-assurance-plan.v1",
+          "mode": "skip",
+          "selectedPackages": [],
+          "independentAuditRequired": false,
+          "targetedTests": [],
+          "gaps": [],
+          "reasons": ["no registered financial calculation package changed"]
+        }
+      }
+    }
+  ]
+}

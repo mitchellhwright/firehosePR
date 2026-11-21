@@ -1,0 +1,48 @@
+# GENERATED from ci/workflows/runner-activation-complete.ts — edit the source, not this file.
+# Regenerate with: npm run ci:workflows
+
+name: Complete runner activation
+run-name: 'Runner activation - ${{ github.event.client_payload.host_label }} (${{ github.event.client_payload.context }})'
+on:
+  repository_dispatch:
+    types:
+      - example-runner-activated
+permissions:
+  contents: read
+concurrency:
+  group: 'install-runner-cleanup-hook-${{ github.event.client_payload.host_label }}'
+  cancel-in-progress: false
+env:
+  npm_config_cache: '${RUNNER_TOOL_CACHE}/npm-cache'
+jobs:
+  activation-complete:
+    name: Confirm runner activation
+    if: 'contains(fromJSON(''["ios-host-mitchell","ios-host-ottavio","ios-host-sagaris","ios-host-sagent","ios-host-tg1","host-instaip","host-instaip2"]''), github.event.client_payload.host_label)'
+    runs-on:
+      - self-hosted
+      - '${{ github.event.client_payload.host_label }}'
+    timeout-minutes: 10
+    env:
+      ACTIVATION_CONTEXT: '${{ github.event.client_payload.context }}'
+      EXPECTED_PLATFORM: '${{ github.event.client_payload.platform }}'
+      HOST_LABEL: '${{ github.event.client_payload.host_label }}'
+    steps:
+      - name: Check out trusted activation controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node for typed maintenance
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Confirm the exact activation this listener serves
+        shell: bash
+        env:
+          EXAMPLE_STEP_NAME: Confirm the exact activation this listener serves
+          EXAMPLE_STEP_OWNER: infrastructure
+          EXAMPLE_STEP_NEXT_ACTION: read the activation log named in the error; it says why activation stopped
+          EXAMPLE_SUMMARY_TITLE: Runner activation
+        run: bash scripts/ci/lib/run-step.sh scripts/ci/runner-activation-complete/activation-complete/confirm-the-exact-activation-this-listener-serves.sh
+      - name: Verify the restarted listener loaded the cleanup hook
+        run: node ci/src/actions/auditRunnerEnvironment.ts

@@ -1,0 +1,42 @@
+# GENERATED from ci/workflows/production-deploy-dispatch.ts — edit the source, not this file.
+# Regenerate with: npm run ci:workflows
+
+name: Production deploy dispatch
+on:
+  check_run:
+    types:
+      - completed
+  repository_dispatch:
+    types:
+      - production-deployed
+permissions:
+  contents: read
+concurrency:
+  group: 'production-deploy-dispatch-${{ fromJSON((github.event_name == ''check_run'' && toJSON((github.event.check_run.app.id == 10529 && github.event.check_run.app.slug == ''google-cloud-build'' && github.event.check_run.name == ''example-production-site-trigger (example-production)'' && github.event.check_run.conclusion == ''success'' && github.event.check_run.check_suite.head_branch == ''main'') && format(''sha-{0}'', github.event.check_run.head_sha) || format(''run-{0}'', github.run_id))) || (github.event_name == ''repository_dispatch'' && toJSON(format(''sha-{0}'', github.event.client_payload.sha || ''''))) || toJSON(format(''run-{0}'', github.run_id))) }}'
+  cancel-in-progress: false
+env:
+  npm_config_cache: '${RUNNER_TOOL_CACHE}/npm-cache'
+jobs:
+  dispatch-production-e2e:
+    name: Dispatch production onboarding E2E
+    if: ((github.event_name == 'check_run' && (github.event.check_run.app.id == 10529 && github.event.check_run.app.slug == 'google-cloud-build' && github.event.check_run.name == 'example-production-site-trigger (example-production)' && github.event.check_run.conclusion == 'success' && github.event.check_run.check_suite.head_branch == 'main')) || (github.event_name == 'repository_dispatch' && github.event.action == 'production-deployed'))
+    runs-on:
+      - self-hosted
+      - Linux
+      - example-trusted-control
+    permissions:
+      actions: write
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - name: Check out the typed dispatcher
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Dispatch exact main verification
+        env:
+          DEPLOYED_SHA: '${{ fromJSON((github.event_name == ''check_run'' && toJSON(github.event.check_run.head_sha)) || (github.event_name == ''repository_dispatch'' && toJSON(github.event.client_payload.sha || '''')) || toJSON(''ci-event-field-unavailable'')) }}'
+          GH_TOKEN: '${{ github.token }}'
+          PRODUCTION_E2E_WORKFLOW: trusted-production-onboarding-e2e.yml
+        run: node ci/src/actions/dispatchProductionE2e.ts

@@ -1,0 +1,301 @@
+# GENERATED from ci/workflows/trusted-production-onboarding-e2e.ts — edit the source, not this file.
+# Regenerate with: npm run ci:workflows
+
+name: Trusted production onboarding E2E
+on:
+  workflow_dispatch:
+    inputs:
+      exact_sha:
+        description: Exact main commit SHA to test in production
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: 'trusted-production-onboarding-e2e-${{ inputs.exact_sha }}'
+  cancel-in-progress: false
+env:
+  npm_config_cache: '${RUNNER_TOOL_CACHE}/npm-cache'
+jobs:
+  validate-trusted-ref:
+    name: Validate trusted production E2E ref
+    runs-on:
+      - self-hosted
+      - Linux
+      - example-trusted-control
+    timeout-minutes: 5
+    outputs:
+      exact_sha: '${{ steps.validate.outputs.exact_sha }}'
+    steps:
+      - name: Check out the trusted validation scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Validate immutable main revision
+        id: validate
+        env:
+          EXAMPLE_STEP_NAME: Validate immutable main revision
+          EXAMPLE_STEP_OWNER: product
+          EXAMPLE_STEP_NEXT_ACTION: 'read the error: it names the ref, the event and the two SHAs that disagreed'
+          EVENT_NAME: '${{ github.event_name }}'
+          EVENT_SHA: '${{ github.sha }}'
+          REF: '${{ github.ref }}'
+          REQUESTED_SHA: '${{ inputs.exact_sha }}'
+        run: bash scripts/ci/lib/run-step.sh scripts/ci/trusted-production-onboarding-e2e/validate-trusted-ref/validate-immutable-main-revision.sh
+      - name: Require the revision to be deployed
+        env:
+          EXAMPLE_STEP_NAME: Require the revision to be deployed
+          EXAMPLE_STEP_OWNER: automation
+          EXAMPLE_STEP_NEXT_ACTION: 'redeploy the revision, or rerun once the deploy reports it live; no macOS runner was spent'
+          EXACT_SHA: '${{ steps.validate.outputs.exact_sha }}'
+          PRODUCTION_HEALTH_URL: 'https://www.example.invalid/health'
+        run: bash scripts/ci/lib/run-step.sh scripts/ci/trusted-production-onboarding-e2e/validate-trusted-ref/require-the-revision-to-be-deployed.sh
+  production-onboarding-e2e:
+    name: Production onboarding E2E execution
+    needs:
+      - validate-trusted-ref
+    runs-on:
+      - self-hosted
+      - macOS
+      - ios-production-e2e
+    permissions:
+      contents: read
+    environment:
+      name: production-e2e
+    env:
+      EXACT_SHA: '${{ needs.validate-trusted-ref.outputs.exact_sha }}'
+      IOS_E2E_TEST_PRODUCTS: '${{ github.workspace }}/.example-ci/e2e-test-products/example-ios-e2e.xctestproducts'
+      PRODUCTION_API_BASE_URL: 'https://www.example.invalid/api'
+      PRODUCTION_E2E_RUN_ID: '${{ github.run_id }}-${{ github.run_attempt }}'
+    outputs:
+      video_artifact_id: '${{ steps.upload-raw-video.outputs.artifact-id }}'
+    steps:
+      - name: Checkout exact trusted revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          filter: 'blob:none'
+          persist-credentials: false
+          ref: '${{ env.EXACT_SHA }}'
+      - name: Verify exact trusted revision
+        env:
+          EXAMPLE_STEP_NAME: Verify exact trusted revision
+          EXAMPLE_STEP_OWNER: product
+          EXAMPLE_STEP_NEXT_ACTION: the checkout resolved a different commit; rerun and check the ref it was given
+        run: bash scripts/ci/lib/run-step.sh scripts/ci/trusted-production-onboarding-e2e/production-onboarding-e2e/verify-exact-trusted-revision.sh
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+      - name: Select exact Xcode
+        run: node ci/src/actions/ios/selectXcode.ts 27.0@27A266a
+      - name: 'Verify exact Xcode, SDK, and simulator runtime'
+        run: python3 scripts/ios-ci-image-prerequisites.py --purpose onboarding
+      - name: Install production E2E tooling dependencies
+        run: npm ci
+      - name: Prepare shared E2E build cache
+        env:
+          IOS_CI_CACHE_LANE: production-e2e
+          IOS_CI_PACKAGE_RESOLVED: '${{ github.workspace }}/ios/example-ios.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved'
+        run: bash scripts/manage-ios-build-cache.sh prepare "$IOS_CI_CACHE_LANE"
+      - name: Build exact-head E2E products once
+        env:
+          IOS_E2E_DERIVED_DATA: '${{ env.IOS_CI_DERIVED_DATA }}'
+          IOS_E2E_TEST_PLAN: CI-E2E
+          IOS_SOURCE_PACKAGES_DIR: '${{ env.IOS_CI_SOURCE_PACKAGES }}'
+        run: bash scripts/build-ios-e2e-test-products.sh
+      - name: Prepare production onboarding paths
+        env:
+          EXAMPLE_STEP_NAME: Prepare production onboarding paths
+          EXAMPLE_STEP_OWNER: automation
+          EXAMPLE_STEP_NEXT_ACTION: the built products hold no xctestrun; read the build step log
+        run: bash scripts/ci/lib/run-step.sh scripts/ci/trusted-production-onboarding-e2e/production-onboarding-e2e/prepare-production-onboarding-paths.sh
+      - name: Ensure simulator host is healthy
+        timeout-minutes: 2
+        run: bash scripts/ensure-ios-simulator-host.sh
+      - name: Select production onboarding simulator
+        id: sim
+        run: python3 scripts/provision-ios-ci-simulator.py --purpose onboarding
+      - name: Provision scoped production FullOnboarding users
+        id: provision-production-users
+        env:
+          EXAMPLE_STEP_NAME: Provision scoped production FullOnboarding users
+          EXAMPLE_STEP_OWNER: infrastructure
+          EXAMPLE_STEP_NEXT_ACTION: check the production admin secret is still valid; the run fails closed without users
+          ALLOW_PRODUCTION_E2E_USER_MUTATION: '1'
+          PRODUCTION_E2E_ADMIN_SECRET: '${{ secrets.PRODUCTION_E2E_ADMIN_SECRET }}'
+        continue-on-error: true
+        run: bash scripts/ci/lib/run-step.sh scripts/ci/trusted-production-onboarding-e2e/production-onboarding-e2e/provision-scoped-production-fullonboarding-users.sh
+      - name: Run production onboarding E2E
+        id: production-onboarding-e2e
+        if: steps.provision-production-users.outcome == 'success'
+        env:
+          DESTINATION: '${{ steps.sim.outputs.dest }}'
+          ITERATIONS: '1'
+          RECORD_VIDEO: '1'
+          DEFER_VIDEO_PROCESSING: '1'
+          RESULT_BUNDLE: '${{ env.ONBOARDING_E2E_RESULT_BUNDLE }}'
+          SKIP_BUILD: '1'
+          UI_TEST_API_BASE_URL: 'https://www.example.invalid/api'
+          UI_TEST_DASHBOARD_OFFLINE_E2E: '0'
+          UI_TEST_PRODUCTION_E2E: '1'
+          UI_TEST_SYNTHETIC_ONBOARDING_EMAIL: '${{ env.UI_TEST_SYNTHETIC_ONBOARDING_EMAIL }}'
+          UI_TEST_SYNTHETIC_PASSWORD: '${{ env.UI_TEST_SYNTHETIC_PASSWORD }}'
+          UI_TEST_SYNTHETIC_PRIVACY_EMAIL: '${{ env.UI_TEST_SYNTHETIC_PRIVACY_EMAIL }}'
+          XCODEBUILD_LOG: '${{ env.ONBOARDING_E2E_XCODEBUILD_LOG }}'
+        continue-on-error: true
+        timeout-minutes: 45
+        run: bash scripts/ios-test-onboarding-e2e.sh
+      - name: Verify exact production revision after onboarding E2E
+        id: verify-post-e2e-revision
+        if: always() && steps.production-onboarding-e2e.outcome != 'skipped'
+        env:
+          EXAMPLE_STEP_NAME: Verify exact production revision after onboarding E2E
+          EXAMPLE_STEP_OWNER: product
+          EXAMPLE_STEP_NEXT_ACTION: a deploy landed mid-run; rerun this workflow against the revision now serving
+          PRODUCTION_HEALTH_URL: 'https://www.example.invalid/health'
+        continue-on-error: true
+        run: bash scripts/ci/lib/run-step.sh scripts/ci/trusted-production-onboarding-e2e/production-onboarding-e2e/verify-exact-production-revision-after-onboarding-e2e.sh
+      - name: Summarize production onboarding failures
+        id: summarize-production-onboarding-failures
+        if: always() && env.ONBOARDING_E2E_RUN_DIR != ''
+        env:
+          EXAMPLE_STEP_NAME: Summarize production onboarding failures
+          EXAMPLE_STEP_OWNER: automation
+          EXAMPLE_STEP_NEXT_ACTION: the result bundle is missing or unreadable; read the raw xcodebuild log instead
+        run: bash scripts/ci/lib/run-step.sh scripts/ci/trusted-production-onboarding-e2e/production-onboarding-e2e/summarize-production-onboarding-failures.sh
+      - name: Upload production onboarding evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always() && env.ONBOARDING_E2E_RUN_DIR != '' && (steps.production-onboarding-e2e.outcome == 'failure' || steps.summarize-production-onboarding-failures.outcome == 'failure' || (steps.production-onboarding-e2e.outcome == 'skipped' && failure()))
+        continue-on-error: true
+        with:
+          name: 'production-onboarding-e2e-${{ env.EXACT_SHA }}-${{ github.run_attempt }}'
+          path: |
+            ${{ env.ONBOARDING_E2E_RESULT_BUNDLE }}
+            ${{ env.ONBOARDING_E2E_XCODEBUILD_LOG }}
+          compression-level: 0
+          if-no-files-found: warn
+          retention-days: 3
+      - name: Locate production recording
+        id: recording
+        if: always() && env.ONBOARDING_E2E_RUN_DIR != ''
+        env:
+          EXAMPLE_STEP_NAME: Locate production recording
+          EXAMPLE_STEP_OWNER: automation
+          EXAMPLE_STEP_NEXT_ACTION: no recording is not a failure; check the onboarding step log if one was expected
+        run: bash scripts/ci/lib/run-step.sh scripts/ci/trusted-production-onboarding-e2e/production-onboarding-e2e/locate-production-recording.sh
+      - name: Upload raw production video for advisory review
+        id: upload-raw-video
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always() && steps.recording.outputs.available == 'true'
+        continue-on-error: true
+        with:
+          name: 'production-onboarding-raw-video-${{ github.run_id }}-${{ github.run_attempt }}'
+          path: |
+            ${{ env.ONBOARDING_E2E_RUN_DIR }}/onboarding-e2e.raw.mp4
+            ${{ env.ONBOARDING_E2E_XCODEBUILD_LOG }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 7
+      - name: Delete scoped production FullOnboarding users
+        id: cleanup-production-users
+        if: always() && steps.provision-production-users.outputs.cleanup_required == 'true'
+        env:
+          EXAMPLE_STEP_NAME: Delete scoped production FullOnboarding users
+          EXAMPLE_STEP_OWNER: infrastructure
+          EXAMPLE_STEP_NEXT_ACTION: delete the run scoped accounts by hand; the lifecycle check fails until they are gone
+          ALLOW_PRODUCTION_E2E_USER_MUTATION: '1'
+          PRODUCTION_E2E_ADMIN_SECRET: '${{ secrets.PRODUCTION_E2E_ADMIN_SECRET }}'
+        continue-on-error: true
+        run: bash scripts/ci/lib/run-step.sh scripts/ci/trusted-production-onboarding-e2e/production-onboarding-e2e/delete-scoped-production-fullonboarding-users.sh
+      - name: Verify production FullOnboarding lifecycle
+        if: always()
+        env:
+          EXAMPLE_STEP_NAME: Verify production FullOnboarding lifecycle
+          EXAMPLE_STEP_OWNER: product
+          EXAMPLE_STEP_NEXT_ACTION: the message names which of the four outcomes was not success; open that step
+          CLEANUP_OUTCOME: '${{ steps.cleanup-production-users.outcome }}'
+          ONBOARDING_OUTCOME: '${{ steps.production-onboarding-e2e.outcome }}'
+          REVISION_OUTCOME: '${{ steps.verify-post-e2e-revision.outcome }}'
+          PROVISION_OUTCOME: '${{ steps.provision-production-users.outcome }}'
+        run: bash scripts/ci/lib/run-step.sh scripts/ci/trusted-production-onboarding-e2e/production-onboarding-e2e/verify-production-fullonboarding-lifecycle.sh
+      - name: Remove production onboarding simulator
+        if: always() && steps.sim.outputs.provisioned_udid != ''
+        env:
+          IOS_RUNNER_CURRENT_SIMULATOR_PURPOSE: Onboarding
+          IOS_RUNNER_CURRENT_SIMULATOR_UDID: '${{ steps.sim.outputs.provisioned_udid }}'
+          IOS_RUNNER_RECLAIM_CI_SIMULATORS: '1'
+        run: bash scripts/reclaim-ios-runner-disk.sh simulator
+      - name: Prune bounded production E2E build cache
+        if: always() && env.IOS_CI_BUILD_CACHE_ENTRY != ''
+        run: bash scripts/manage-ios-build-cache.sh prune production-e2e
+  production-video-review:
+    name: Production onboarding video review (advisory)
+    needs:
+      - validate-trusted-ref
+      - production-onboarding-e2e
+    if: always() && !cancelled() && github.ref == 'refs/heads/main' && needs.validate-trusted-ref.result == 'success' && needs.production-onboarding-e2e.outputs.video_artifact_id != ''
+    runs-on:
+      - self-hosted
+      - Linux
+      - example-trusted-control
+    permissions:
+      actions: read
+      contents: read
+    continue-on-error: true
+    env:
+      UI_TEST_PRODUCTION_E2E: '1'
+      ONBOARDING_VIDEO_ISSUE_FILING_ENABLED: '0'
+    steps:
+      - name: Checkout review tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: '${{ needs.validate-trusted-ref.outputs.exact_sha }}'
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+      - name: Prepare isolated onboarding video workspace
+        env:
+          EXAMPLE_STEP_NAME: Prepare isolated onboarding video workspace
+          EXAMPLE_STEP_OWNER: automation
+          EXAMPLE_STEP_NEXT_ACTION: the runner temp directory is unwritable; a repeated failure is a runner problem
+        run: bash scripts/ci/lib/run-step.sh scripts/ci/trusted-production-onboarding-e2e/production-video-review/prepare-isolated-onboarding-video-workspace.sh
+      - name: Download raw onboarding video
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: 'production-onboarding-raw-video-${{ github.run_id }}-${{ github.run_attempt }}'
+          path: '${{ runner.temp }}/onboarding-video-${{ github.run_id }}-${{ github.run_attempt }}/raw'
+      - name: Process onboarding video
+        id: process-video
+        env:
+          EXAMPLE_STEP_NAME: Process onboarding video
+          EXAMPLE_STEP_OWNER: product
+          EXAMPLE_STEP_NEXT_ACTION: 'read the ffmpeg output; the review is advisory, so the producing run still stands'
+        continue-on-error: true
+        run: bash scripts/ci/lib/run-step.sh scripts/ci/trusted-production-onboarding-e2e/production-video-review/process-onboarding-video.sh
+      - name: Run deferred onboarding QA and UX Codex review
+        if: steps.process-video.outcome == 'success'
+        env:
+          OPENAI_API_KEY: '${{ secrets.OPENAI_API_KEY }}'
+        continue-on-error: true
+        run: node ci/src/actions/reviewOnboardingVideo.ts
+      - name: Upload onboarding video review artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        continue-on-error: true
+        with:
+          name: 'production-onboarding-video-review-${{ github.run_id }}-${{ github.run_attempt }}'
+          path: |
+            ${{ env.ONBOARDING_E2E_COMPRESSED_VIDEO }}
+            ${{ env.ONBOARDING_E2E_REVIEW_JSON }}
+            ${{ env.ONBOARDING_E2E_REVIEW_MD }}
+          compression-level: 0
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Remove owned processing workspace
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/onboarding-video-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"

@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable",
+      "DOM.AsyncIterable"
+    ],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "types": [
+      "node"
+    ],
+    "allowImportingTsExtensions": true,
+    // The typed layer imports the shared classifiers that still live in
+    // scripts/*.mjs rather than restating their tables; those files carry JSDoc
+    // types and are themselves checked by ci/tsconfig.scripts.json.
+    "allowJs": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true
+  },
+  "include": [
+    "cloudbuild/**/*.ts",
+    "workflows/**/*.ts",
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "../scripts/select-ios-affected-tests.ts",
+    "tests/**/*.ts",
+    "../server/tests/helpers/sourceText.ts",
+    "../server/tests/utils/plaidSchedulerDriftHarness.ts"
+  ]
+}

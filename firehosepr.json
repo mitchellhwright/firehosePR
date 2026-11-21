@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "maxShards": 3,
+  "globalInputs": [
+    "package.json",
+    "package-lock.json",
+    ".github/",
+    "firehosepr.json",
+    "ci/src/",
+    "src/",
+    "dist/",
+    "bin/",
+    "tsconfig.json"
+  ],
+  "ignoredPaths": [],
+  "lanes": [
+    {
+      "id": "core",
+      "inputs": [
+        "tests/"
+      ],
+      "command": [
+        "node",
+        "--test"
+      ],
+      "tests": [
+        {
+          "path": "tests/core.test.ts",
+          "seconds": 2
+        },
+        {
+          "path": "tests/extracted.test.ts",
+          "seconds": 2
+        }
+      ]
+    },
+    {
+      "id": "extracted",
+      "inputs": [
+        "ci/tests/"
+      ],
+      "command": [
+        "node",
+        "--test"
+      ],
+      "tests": [
+        {
+          "path": "ci/tests/awaitLogLine.test.ts",
+          "seconds": 3
+        },
+        {
+          "path": "ci/tests/compiledTestEnumeration.test.ts",
+          "seconds": 1
+        },
+        {
+          "path": "ci/tests/githubReadRetry.test.ts",
+          "seconds": 1
+        },
+        {
+          "path": "ci/tests/iosIncrementalBuildGuard.test.ts",
+          "seconds": 1
+        },
+        {
+          "path": "ci/tests/testProductArchive.test.ts",
+          "seconds": 1
+        },
+        {
+          "path": "ci/tests/testProductToolchain.test.ts",
+          "seconds": 1
+        }
+      ]
+    }
+  ]
+}

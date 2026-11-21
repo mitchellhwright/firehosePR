@@ -1,0 +1,73 @@
+# GENERATED from ci/workflows/promotion-checkpoint.ts — edit the source, not this file.
+# Regenerate with: npm run ci:workflows
+
+name: Create promotion checkpoint
+on:
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+permissions:
+  contents: read
+  pull-requests: read
+concurrency:
+  group: promotion-checkpoint-main
+  cancel-in-progress: false
+env:
+  npm_config_cache: '${RUNNER_TOOL_CACHE}/npm-cache'
+jobs:
+  checkpoint:
+    name: Freeze develop promotion checkpoint
+    if: github.event.pull_request.head.ref == 'develop' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on:
+      - self-hosted
+      - Linux
+      - example-trusted-control
+    timeout-minutes: 10
+    steps:
+      - name: Check out the checkpoint transaction
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up Node.js for the typed transaction
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+      - name: Install typed promotion transaction dependencies
+        run: npm ci --prefix ci --no-audit --no-fund --ignore-scripts
+      - name: Create promotion GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: '${{ secrets.PROMOTION_CHECKPOINT_APP_ID }}'
+          private-key: '${{ secrets.PROMOTION_CHECKPOINT_APP_PRIVATE_KEY }}'
+          owner: '${{ github.repository_owner }}'
+          repositories: '${{ github.event.repository.name }}'
+      - name: Create immutable checkpoint pull request
+        id: checkpoint
+        env:
+          GITHUB_API_URL: '${{ github.api_url }}'
+          GH_TOKEN: '${{ steps.app-token.outputs.token }}'
+          HEAD_SHA: '${{ github.event.pull_request.head.sha }}'
+          ORIGINAL_PR_NUMBER: '${{ github.event.pull_request.number }}'
+          REPOSITORY: '${{ github.repository }}'
+          REPOSITORY_OWNER: '${{ github.repository_owner }}'
+          APP_STORE_CONNECT_API_KEY_ID: '${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}'
+          APP_STORE_CONNECT_API_KEY_ISSUER_ID: '${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}'
+          APP_STORE_CONNECT_API_KEY_CONTENT: '${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}'
+          APP_STORE_CONNECT_APP_ID: '1234567890'
+        run: node ci/src/actions/createPromotionCheckpoint.ts
+      - name: Summarize promotion checkpoint
+        env:
+          CHECKPOINT_BRANCH: '${{ steps.checkpoint.outputs.checkpoint_branch }}'
+          CHECKPOINT_PR_NUMBER: '${{ steps.checkpoint.outputs.checkpoint_pr_number }}'
+          CHECKPOINT_URL: '${{ steps.checkpoint.outputs.checkpoint_url }}'
+          CHECKPOINT_HEAD: '${{ steps.checkpoint.outputs.checkpoint_head }}'
+          CHECKPOINT_BASE: '${{ steps.checkpoint.outputs.checkpoint_base }}'
+          HEAD_SHA: '${{ github.event.pull_request.head.sha }}'
+        run: node ci/src/actions/summarizePromotionCheckpoint.ts

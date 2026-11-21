@@ -1,0 +1,341 @@
+# GENERATED from ci/workflows/refresh-pr-ci-after-base-edit.ts — edit the source, not this file.
+# Regenerate with: npm run ci:workflows
+
+name: Refresh PR CI after base change
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request_target:
+    types:
+      - synchronize
+      - edited
+      - ready_for_review
+  workflow_run:
+    workflows:
+      - Test - iOS
+    types:
+      - completed
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+concurrency:
+  group: 'review-controller-${{ (github.event_name == ''pull_request_target'' && github.event.action == ''synchronize'' && format(''pr-synchronize-{0}'', github.event.pull_request.number)) || (github.event_name == ''pull_request_target'' && github.event.action == ''edited'' && github.event.changes.base != null && format(''pr-retarget-{0}'', github.event.pull_request.number)) || (github.event_name == ''pull_request_target'' && github.event.action == ''ready_for_review'' && format(''pr-ready-{0}'', github.event.pull_request.number)) || (github.event_name == ''workflow_run'' && github.event.workflow_run.name == ''Test - iOS'' && format(''retained-ios-{0}-{1}'', github.event.workflow_run.pull_requests[0].url, github.event.workflow_run.id)) || (github.event_name == ''push'' && format(''base-update-fanout-{0}'', github.sha)) || format(''continuity-{0}'', github.run_id) }}'
+  cancel-in-progress: false
+env:
+  npm_config_cache: '${RUNNER_TOOL_CACHE}/npm-cache'
+jobs:
+  route-initial-control:
+    name: Route continuity controllers to available Linux capacity
+    if: '(github.event_name == ''push'') || (github.event_name == ''pull_request_target'' && (github.event.action == ''synchronize'' || (github.event.action == ''ready_for_review'' && vars.CI_RETARGET_RECOVERY_ENABLED == ''true'') || (github.event.action == ''edited'' && github.event.changes.base != null && github.event.pull_request.draft == false)) && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == ''workflow_run'' && github.event.workflow_run.name == ''Test - iOS'' && github.event.workflow_run.event == ''pull_request'' && ((startsWith(github.event.workflow_run.head_branch, ''dependabot/'') && github.event.workflow_run.conclusion == ''success'') || (github.event.workflow_run.pull_requests[0].head.sha && ((github.event.workflow_run.pull_requests[0].head.sha == github.event.workflow_run.head_sha && github.event.workflow_run.conclusion == ''failure'' && (github.event.workflow_run.head_commit.committer.email == ''noreply@github.com'' || startsWith(github.event.workflow_run.head_commit.message, ''chore: update PR #''))) || (github.event.workflow_run.pull_requests[0].head.sha != github.event.workflow_run.head_sha && github.event.workflow_run.conclusion != ''cancelled'' && github.event.workflow_run.conclusion != ''skipped''))))) || (github.event_name == ''workflow_run'' && github.event.workflow_run.path == ''.github/workflows/ios-tests.yml'' && ((github.event.workflow_run.event == ''workflow_dispatch'' && github.event.workflow_run.conclusion == ''success'' && github.event.workflow_run.head_branch == ''develop'' && startsWith(github.event.workflow_run.display_title, ''promotion-evidence:'')) || (github.event.workflow_run.event == ''pull_request'' && startsWith(github.event.workflow_run.head_branch, ''promotion/develop-'') && (github.event.workflow_run.conclusion == ''failure'' || github.event.workflow_run.conclusion == ''cancelled'' || github.event.workflow_run.conclusion == ''timed_out''))))'
+    runs-on: '${{ fromJson(true && vars.CI_HOSTED_LINUX_AVAILABLE != ''1'' && ''["self-hosted","Linux","example-trusted-control"]'' || ''["ubuntu-24.04"]'') }}'
+    permissions:
+      actions: read
+      contents: read
+    timeout-minutes: 5
+    outputs:
+      control_runner_labels: '${{ steps.control-route.outputs.control_runner_labels }}'
+    steps:
+      - name: Checkout trusted controller capacity selector
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: '${{ github.event.repository.default_branch }}'
+          persist-credentials: false
+          sparse-checkout: |
+            ci/src
+            scripts/ci/generated
+            .github/actions/typed-step-runner
+      - name: Setup Node for the trusted controllers
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Route control jobs to free external Linux or hosted overflow
+        id: control-route
+        if: hashFiles('ci/src/actions/selectControlRunners.ts') != ''
+        env:
+          GITHUB_TOKEN: '${{ github.token }}'
+          RUNNER_ENVIRONMENT: '${{ runner.environment }}'
+          SAME_REPOSITORY_CODE: '${{ true }}'
+          REPOSITORY_DEFAULT_BRANCH: '${{ github.event.repository.default_branch }}'
+          CI_HOSTED_LINUX_AVAILABLE: '${{ vars.CI_HOSTED_LINUX_AVAILABLE || ''0'' }}'
+        continue-on-error: true
+        run: node ci/src/actions/selectControlRunners.ts
+  fan-out-base-update:
+    name: Update overlapping pull requests
+    needs:
+      - route-initial-control
+    if: always() && !cancelled() && (github.event_name == 'push')
+    runs-on: '${{ fromJson(needs.route-initial-control.outputs.control_runner_labels || ''["self-hosted","Linux","example-trusted-control"]'') }}'
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+      pull-requests: read
+    timeout-minutes: 5
+    outputs:
+      conflicted_pull_requests: '${{ steps.fan-out.outputs.conflicted_pull_requests }}'
+    steps:
+      - name: Checkout trusted fan-out controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: '${{ github.event.repository.default_branch }}'
+          persist-credentials: false
+          sparse-checkout: |
+            ci
+            .github/workflows
+            .github/actions/typed-step-runner
+      - name: Setup Node for the trusted controllers
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Install typed planner dependencies
+        id: ci-deps
+        uses: ./.github/actions/typed-step-runner
+        env:
+          EXAMPLE_STEP_NAME: Install typed planner dependencies
+          EXAMPLE_STEP_OWNER: infrastructure
+          EXAMPLE_STEP_NEXT_ACTION: re-run once; then check the npm registry and the committed ci/package-lock.json
+        with:
+          entry: ci/src/actions/installCiPackageDependencies.ts
+      - name: Create scoped pull-request update token
+        id: update-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: '${{ secrets.PROMOTION_CHECKPOINT_APP_ID }}'
+          private-key: '${{ secrets.PROMOTION_CHECKPOINT_APP_PRIVATE_KEY }}'
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
+      - name: Update overlapping pull requests
+        id: fan-out
+        env:
+          REPOSITORY: '${{ github.repository }}'
+          READ_TOKEN: '${{ github.token }}'
+          UPDATE_TOKEN: '${{ steps.update-token.outputs.token }}'
+        run: node ci/src/actions/refreshOverlappingPullRequests.ts
+  cancel-obsolete-ios:
+    name: Keep PR work current
+    needs:
+      - route-initial-control
+    if: always() && !cancelled() && (github.event_name == 'pull_request_target' && (github.event.action == 'synchronize' || (github.event.action == 'ready_for_review' && vars.CI_RETARGET_RECOVERY_ENABLED == 'true') || (github.event.action == 'edited' && github.event.changes.base != null && github.event.pull_request.draft == false)) && github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: '${{ fromJson(needs.route-initial-control.outputs.control_runner_labels || ''["self-hosted","Linux","example-trusted-control"]'') }}'
+    permissions:
+      actions: write
+      checks: read
+      contents: read
+      pull-requests: read
+    timeout-minutes: 10
+    outputs:
+      conflicted_pull_requests: '${{ steps.fan-out.outputs.conflicted_pull_requests }}'
+    steps:
+      - name: Checkout trusted obsolete-run controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: '${{ github.event.repository.default_branch }}'
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+            .github/workflows
+            ci
+            .github/actions/typed-step-runner
+      - name: Setup Node for the trusted controllers
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Install typed planner dependencies
+        id: ci-deps
+        uses: ./.github/actions/typed-step-runner
+        if: always() && (github.event.action == 'synchronize' || (github.event.action == 'edited' && github.event.changes.base != null) || (github.event.action == 'ready_for_review' && vars.CI_RETARGET_RECOVERY_ENABLED == 'true'))
+        env:
+          EXAMPLE_STEP_NAME: Install typed planner dependencies
+          EXAMPLE_STEP_OWNER: infrastructure
+          EXAMPLE_STEP_NEXT_ACTION: re-run once; then check the npm registry and the committed ci/package-lock.json
+        with:
+          entry: ci/src/actions/installCiPackageDependencies.ts
+      - name: Cancel obsolete active iOS work
+        uses: ./.github/actions/typed-step-runner
+        if: steps.ci-deps.outcome == 'success' && ((github.event.action == 'synchronize' && github.event.pull_request.draft == false) || (github.event.action == 'edited' && github.event.changes.base != null))
+        env:
+          EXAMPLE_STEP_NAME: Cancel obsolete active iOS work
+          EXAMPLE_STEP_OWNER: automation
+          EXAMPLE_STEP_NEXT_ACTION: 'read the step log: it names every run it cancelled, retained or left alone, with a reason code'
+          GITHUB_TOKEN: '${{ github.token }}'
+        with:
+          entry: ci/src/actions/cancelObsoleteIosRuns.ts
+      - name: Create scoped pull-request update token
+        id: update-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        if: always() && github.event.action == 'synchronize' && steps.ci-deps.outcome == 'success'
+        with:
+          app-id: '${{ secrets.PROMOTION_CHECKPOINT_APP_ID }}'
+          private-key: '${{ secrets.PROMOTION_CHECKPOINT_APP_PRIVATE_KEY }}'
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
+      - name: Update overlapping pull requests
+        id: fan-out
+        if: always() && github.event.action == 'synchronize' && steps.update-token.outcome == 'success'
+        env:
+          REPOSITORY: '${{ github.repository }}'
+          READ_TOKEN: '${{ github.token }}'
+          UPDATE_TOKEN: '${{ steps.update-token.outputs.token }}'
+        run: node ci/src/actions/refreshOverlappingPullRequests.ts
+      - name: Create scoped retarget recovery token
+        id: retarget-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        if: always() && steps.ci-deps.outcome == 'success' && ((github.event.action == 'edited' && github.event.changes.base != null) || (github.event.action == 'ready_for_review' && vars.CI_RETARGET_RECOVERY_ENABLED == 'true'))
+        with:
+          app-id: '${{ secrets.PROMOTION_CHECKPOINT_APP_ID }}'
+          private-key: '${{ secrets.PROMOTION_CHECKPOINT_APP_PRIVATE_KEY }}'
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
+      - name: Recover a retargeted PR integration candidate
+        if: always() && steps.retarget-token.outcome == 'success'
+        env:
+          REPOSITORY: '${{ github.repository }}'
+          READ_TOKEN: '${{ github.token }}'
+          UPDATE_TOKEN: '${{ steps.retarget-token.outputs.token }}'
+        run: node ci/src/actions/recoverRetargetedPullRequest.ts
+  resume-retained-ios:
+    name: Resume retained iOS run
+    needs:
+      - route-initial-control
+    if: 'always() && !cancelled() && (github.event_name == ''workflow_run'' && github.event.workflow_run.name == ''Test - iOS'' && github.event.workflow_run.event == ''pull_request'' && ((startsWith(github.event.workflow_run.head_branch, ''dependabot/'') && github.event.workflow_run.conclusion == ''success'') || (github.event.workflow_run.pull_requests[0].head.sha && ((github.event.workflow_run.pull_requests[0].head.sha == github.event.workflow_run.head_sha && github.event.workflow_run.conclusion == ''failure'' && (github.event.workflow_run.head_commit.committer.email == ''noreply@github.com'' || startsWith(github.event.workflow_run.head_commit.message, ''chore: update PR #''))) || (github.event.workflow_run.pull_requests[0].head.sha != github.event.workflow_run.head_sha && github.event.workflow_run.conclusion != ''cancelled'' && github.event.workflow_run.conclusion != ''skipped'')))))'
+    runs-on: '${{ fromJson(needs.route-initial-control.outputs.control_runner_labels || ''["self-hosted","Linux","example-trusted-control"]'') }}'
+    permissions:
+      actions: write
+      contents: read
+      pull-requests: read
+    timeout-minutes: 5
+    steps:
+      - name: Checkout trusted controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: '${{ github.event.repository.default_branch }}'
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+            .github/workflows
+            ci/src
+            ci/contracts
+            .github/actions/typed-step-runner
+      - name: Setup Node for the trusted controllers
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Create scoped Dependabot auto-merge token
+        id: dependabot-merge-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        if: 'startsWith(github.event.workflow_run.head_branch, ''dependabot/'')'
+        with:
+          app-id: '${{ secrets.PROMOTION_CHECKPOINT_APP_ID }}'
+          private-key: '${{ secrets.PROMOTION_CHECKPOINT_APP_PRIVATE_KEY }}'
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Enable native auto-merge for verified Dependabot updates
+        if: 'startsWith(github.event.workflow_run.head_branch, ''dependabot/'') && steps.dependabot-merge-token.outcome == ''success'''
+        env:
+          GITHUB_TOKEN: '${{ steps.dependabot-merge-token.outputs.token }}'
+        run: node ci/src/actions/enableDependabotAutoMerge.ts
+      - name: Create scoped pull-request update token
+        id: update-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        if: '!startsWith(github.event.workflow_run.head_branch, ''dependabot/'')'
+        with:
+          app-id: '${{ secrets.PROMOTION_CHECKPOINT_APP_ID }}'
+          private-key: '${{ secrets.PROMOTION_CHECKPOINT_APP_PRIVATE_KEY }}'
+          permission-contents: write
+      - name: Resume a deferred patch-equivalent iOS run
+        if: 'always() && ((startsWith(github.event.workflow_run.head_branch, ''dependabot/'') && steps.dependabot-merge-token.outcome == ''success'') || (!startsWith(github.event.workflow_run.head_branch, ''dependabot/'') && steps.update-token.outcome == ''success''))'
+        env:
+          GITHUB_TOKEN: '${{ github.token }}'
+          GITHUB_EVENT_TOKEN: '${{ steps.dependabot-merge-token.outputs.token || steps.update-token.outputs.token }}'
+        run: node ci/src/actions/resumeRetainedIosPredecessor.ts
+  recheck-promotion-after-evidence:
+    name: Recheck promotion after evidence
+    needs:
+      - route-initial-control
+    if: 'always() && !cancelled() && (github.event_name == ''workflow_run'' && github.event.workflow_run.path == ''.github/workflows/ios-tests.yml'' && ((github.event.workflow_run.event == ''workflow_dispatch'' && github.event.workflow_run.conclusion == ''success'' && github.event.workflow_run.head_branch == ''develop'' && startsWith(github.event.workflow_run.display_title, ''promotion-evidence:'')) || (github.event.workflow_run.event == ''pull_request'' && startsWith(github.event.workflow_run.head_branch, ''promotion/develop-'') && (github.event.workflow_run.conclusion == ''failure'' || github.event.workflow_run.conclusion == ''cancelled'' || github.event.workflow_run.conclusion == ''timed_out''))))'
+    runs-on: '${{ fromJson(needs.route-initial-control.outputs.control_runner_labels || ''["self-hosted","Linux","example-trusted-control"]'') }}'
+    permissions:
+      actions: write
+      contents: read
+      pull-requests: read
+    concurrency:
+      group: 'promotion-recheck-${{ github.event.workflow_run.event == ''workflow_dispatch'' && format(''promotion/develop-{0}'', github.event.workflow_run.head_sha) || github.event.workflow_run.head_branch }}'
+      cancel-in-progress: false
+    timeout-minutes: 5
+    steps:
+      - name: Checkout trusted promotion recheck controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: '${{ github.event.repository.default_branch }}'
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+            ci
+            .github/actions/typed-step-runner
+      - name: Setup Node for the trusted controllers
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Install promotion recheck dependencies
+        uses: ./.github/actions/typed-step-runner
+        env:
+          EXAMPLE_STEP_NAME: Install promotion recheck dependencies
+          EXAMPLE_STEP_OWNER: infrastructure
+          EXAMPLE_STEP_NEXT_ACTION: re-run once; then check the npm registry and the committed ci/package-lock.json
+        with:
+          entry: ci/src/actions/installCiPackageDependencies.ts
+      - name: Rerun promotion iOS gate after evidence
+        uses: ./.github/actions/typed-step-runner
+        env:
+          EXAMPLE_STEP_NAME: Rerun promotion iOS gate after evidence
+          EXAMPLE_STEP_OWNER: automation
+          EXAMPLE_STEP_NEXT_ACTION: 'read the promotion-recheck lines: each names the pull request, run and reason'
+          EXAMPLE_SUMMARY_TITLE: Promotion evidence recheck
+          REPOSITORY: '${{ github.repository }}'
+          GITHUB_TOKEN: '${{ github.token }}'
+        with:
+          entry: ci/src/actions/ios/recheckPromotionAfterEvidence.ts
+  cancel-conflicted-pr-ci:
+    name: Cancel conflicted PR work
+    needs:
+      - route-initial-control
+      - fan-out-base-update
+      - cancel-obsolete-ios
+    if: always() && (needs.fan-out-base-update.outputs.conflicted_pull_requests != '' || needs.cancel-obsolete-ios.outputs.conflicted_pull_requests != '')
+    runs-on: '${{ fromJson(needs.route-initial-control.outputs.control_runner_labels || ''["self-hosted","Linux","example-trusted-control"]'') }}'
+    permissions:
+      actions: write
+      contents: read
+      pull-requests: read
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted conflict cleanup controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: '${{ github.event.repository.default_branch }}'
+          persist-credentials: false
+          sparse-checkout: |
+            ci/src
+            .github/actions/typed-step-runner
+      - name: Setup Node for the trusted controllers
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Cancel validation of conflicted pull requests
+        env:
+          CI_WORKFLOW_NAMES: 'PR Checks,Test - iOS'
+          CONFLICTED_PULL_REQUESTS: '${{ needs.fan-out-base-update.outputs.conflicted_pull_requests || needs.cancel-obsolete-ios.outputs.conflicted_pull_requests }}'
+          GITHUB_TOKEN: '${{ github.token }}'
+        run: node ci/src/actions/cancelTerminalPrRuns.ts

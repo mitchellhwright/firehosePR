@@ -1,0 +1,37 @@
+# GENERATED from ci/workflows/actions-artifact-cleanup.ts — edit the source, not this file.
+# Regenerate with: npm run ci:workflows
+
+name: Actions Artifact Cleanup
+on:
+  schedule:
+    - cron: 17 */6 * * *
+  workflow_dispatch: {}
+permissions:
+  actions: write
+  contents: read
+concurrency:
+  group: actions-storage-cleanup
+  cancel-in-progress: false
+env:
+  npm_config_cache: '${RUNNER_TOOL_CACHE}/npm-cache'
+jobs:
+  prune-superseded-caches:
+    name: Prune superseded XCTest caches
+    runs-on:
+      - self-hosted
+      - Linux
+      - example-trusted-control
+    timeout-minutes: 10
+    steps:
+      - name: Check out the cleanup scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Prune superseded debt-card XCTest caches
+        env:
+          CACHE_KEY_PREFIX: ios-debt-card-test-products-v1-
+          GITHUB_API_URL: '${{ github.api_url }}'
+          GITHUB_REPOSITORY: '${{ github.repository }}'
+          GITHUB_TOKEN: '${{ github.token }}'
+        run: node ci/src/actions/cleanupActionsStorage.ts

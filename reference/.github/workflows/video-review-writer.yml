@@ -1,0 +1,71 @@
+# GENERATED from ci/workflows/video-review-writer.ts — edit the source, not this file.
+# Regenerate with: npm run ci:workflows
+
+name: Advisory video issue writer
+on:
+  workflow_run:
+    workflows:
+      - Trusted production onboarding E2E
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      producer_run_id:
+        description: Saved trusted production workflow run ID
+        required: true
+        type: string
+      producer_run_attempt:
+        description: Saved producer attempt number
+        required: true
+        type: string
+      apply:
+        description: Apply writes only after the rollout controls are verified
+        default: false
+        type: boolean
+permissions: {}
+concurrency:
+  group: example-advisory-video-issue-writer
+  cancel-in-progress: false
+env:
+  npm_config_cache: '${RUNNER_TOOL_CACHE}/npm-cache'
+jobs:
+  consume:
+    name: Publish advisory video review findings
+    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_run' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_branch == 'main' && vars.ONBOARDING_VIDEO_ISSUE_FILING_ENABLED == '1' && vars.VIDEO_NAVARCH_CONTROLS_VERIFIED == '1')
+    runs-on:
+      - self-hosted
+      - Linux
+      - example-trusted-control
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    steps:
+      - name: Checkout trusted writer implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+      - name: Consume saved producer evidence
+        env:
+          GITHUB_TOKEN: '${{ github.token }}'
+          VIDEO_PRODUCER_RUN_ID: '${{ github.event_name == ''workflow_run'' && github.event.workflow_run.id || inputs.producer_run_id }}'
+          VIDEO_PRODUCER_RUN_ATTEMPT: '${{ github.event_name == ''workflow_run'' && github.event.workflow_run.run_attempt || inputs.producer_run_attempt }}'
+          VIDEO_WRITER_APPLY: '${{ (github.event_name == ''workflow_run'' || inputs.apply) && ''1'' || ''0'' }}'
+          ONBOARDING_VIDEO_ISSUE_FILING_ENABLED: '${{ vars.ONBOARDING_VIDEO_ISSUE_FILING_ENABLED }}'
+          VIDEO_NAVARCH_CONTROLS_VERIFIED: '${{ vars.VIDEO_NAVARCH_CONTROLS_VERIFIED }}'
+          VIDEO_WRITER_OUTPUT: '${{ runner.temp }}/video-writer/outcome.json'
+        run: node ci/src/actions/consumeVideoReview.ts
+      - name: Preserve saved input and write outcomes
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: 'video-writer-outcome-${{ github.run_id }}-${{ github.run_attempt }}'
+          path: '${{ runner.temp }}/video-writer/outcome.json'
+          if-no-files-found: warn
+          retention-days: 14

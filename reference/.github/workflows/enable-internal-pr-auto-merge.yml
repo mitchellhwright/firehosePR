@@ -1,0 +1,55 @@
+# GENERATED from ci/workflows/enable-internal-pr-auto-merge.ts — edit the source, not this file.
+# Regenerate with: npm run ci:workflows
+
+name: Enable native PR auto-merge
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+      - synchronize
+      - edited
+permissions:
+  contents: read
+  pull-requests: read
+concurrency:
+  group: 'native-auto-merge-${{ github.event.pull_request.number }}'
+  cancel-in-progress: false
+env:
+  npm_config_cache: '${RUNNER_TOOL_CACHE}/npm-cache'
+jobs:
+  enable-auto-merge:
+    name: Arm native auto-merge
+    if: github.event.pull_request.draft == false && github.event.pull_request.base.ref == 'develop' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.type == 'User' && (github.event.action != 'edited' || github.event.changes.base != null)
+    runs-on:
+      - self-hosted
+      - Linux
+      - example-trusted-control
+    permissions:
+      contents: read
+      pull-requests: read
+    timeout-minutes: 5
+    steps:
+      - name: Check out trusted default-branch enabler
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: '${{ github.event.repository.default_branch }}'
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Create scoped PR auto-merge token
+        id: merge-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: '${{ secrets.PROMOTION_CHECKPOINT_APP_ID }}'
+          private-key: '${{ secrets.PROMOTION_CHECKPOINT_APP_PRIVATE_KEY }}'
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Enable GitHub auto-merge for current PR
+        env:
+          GITHUB_TOKEN: '${{ steps.merge-token.outputs.token }}'
+        run: node ci/src/actions/enableInternalPrAutoMerge.ts

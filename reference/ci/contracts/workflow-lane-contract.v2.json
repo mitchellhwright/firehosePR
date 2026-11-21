@@ -1,0 +1,896 @@
+{
+  "schema": "example.workflow-lane-contract.v2",
+  "lanes": [
+    {
+      "id": "actions-artifact-cleanup.prune-superseded-caches",
+      "displayName": "Prune superseded XCTest caches",
+      "workflowPath": ".github/workflows/actions-artifact-cleanup.yml",
+      "jobId": "prune-superseded-caches",
+      "dependencies": [],
+      "runnerClass": "linux-self-hosted",
+      "costClass": "light",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"Linux\",\"example-trusted-control\"]"
+    },
+    {
+      "id": "branch-policy-monitor.confirm-activation",
+      "displayName": "Confirm branch policy monitor activation",
+      "workflowPath": ".github/workflows/branch-policy-monitor.yml",
+      "jobId": "confirm-activation",
+      "dependencies": [],
+      "runnerClass": "linux-self-hosted",
+      "costClass": "light",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"Linux\",\"example-trusted-control\"]"
+    },
+    {
+      "id": "branch-policy-monitor.inspect",
+      "displayName": "Inspect branch protection and admin access",
+      "workflowPath": ".github/workflows/branch-policy-monitor.yml",
+      "jobId": "inspect",
+      "dependencies": [
+        "confirm-activation"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"ubuntu-24.04\"]"
+    },
+    {
+      "id": "review.aggregate",
+      "displayName": "Cancel abandoned PR work",
+      "workflowPath": ".github/workflows/cancel-blocked-pr-ci.yml",
+      "jobId": "cancel-blocked-pr-ci",
+      "dependencies": [],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"Linux\",\"example-trusted-control\"]"
+    },
+    {
+      "id": "cancel-dequeued-candidate.cancel-dequeued-candidate",
+      "displayName": "Cancel dequeued candidate work",
+      "workflowPath": ".github/workflows/cancel-dequeued-candidate.yml",
+      "jobId": "cancel-dequeued-candidate",
+      "dependencies": [],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"Linux\",\"example-trusted-control\"]"
+    },
+    {
+      "id": "enable-internal-pr-auto-merge.enable-auto-merge",
+      "displayName": "Arm native auto-merge",
+      "workflowPath": ".github/workflows/enable-internal-pr-auto-merge.yml",
+      "jobId": "enable-auto-merge",
+      "dependencies": [],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"Linux\",\"example-trusted-control\"]"
+    },
+    {
+      "id": "hosted-linux-admission.probe",
+      "displayName": "Hosted Linux admission probe",
+      "workflowPath": ".github/workflows/hosted-linux-admission.yml",
+      "jobId": "probe",
+      "dependencies": [],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"ubuntu-24.04\"]"
+    },
+    {
+      "id": "install-runner-cleanup-hooks.reconcile-host",
+      "displayName": "Dispatch runner maintenance",
+      "workflowPath": ".github/workflows/install-runner-cleanup-hooks.yml",
+      "jobId": "reconcile-host",
+      "dependencies": [],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"Linux\",\"example-trusted-control\"]"
+    },
+    {
+      "id": "install-runner-cleanup-host.install",
+      "displayName": "Install runner cleanup hook",
+      "workflowPath": ".github/workflows/install-runner-cleanup-host.yml",
+      "jobId": "install",
+      "dependencies": [],
+      "runnerClass": "self-hosted-dynamic",
+      "costClass": "medium",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"${{ inputs.host_label }}\"]"
+    },
+    {
+      "id": "linux-runner-heartbeat.portable-heartbeat",
+      "displayName": "External Linux heartbeat (portable)",
+      "workflowPath": ".github/workflows/linux-runner-heartbeat.yml",
+      "jobId": "portable-heartbeat",
+      "dependencies": [],
+      "runnerClass": "linux-external-preferred",
+      "costClass": "light",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "\"${{ fromJson(vars.PR_PORTABLE_RUNNER_LABELS || '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-lane\\\",\\\"linux-remote\\\"]') }}\""
+    },
+    {
+      "id": "linux-runner-heartbeat.database-heartbeat",
+      "displayName": "External Linux heartbeat (database)",
+      "workflowPath": ".github/workflows/linux-runner-heartbeat.yml",
+      "jobId": "database-heartbeat",
+      "dependencies": [],
+      "runnerClass": "linux-external-preferred",
+      "costClass": "light",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "\"${{ fromJson(vars.PR_DATABASE_RUNNER_LABELS || '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-lane\\\",\\\"ARM64\\\",\\\"docker-capable\\\",\\\"linux-remote\\\"]') }}\""
+    },
+    {
+      "id": "native-terminal-ios-cancel.terminal-signal",
+      "displayName": "Cancel terminal PR validation natively",
+      "workflowPath": ".github/workflows/native-terminal-ios-cancel.yml",
+      "jobId": "terminal-signal",
+      "dependencies": [],
+      "runnerClass": "linux-self-hosted",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"Linux\",\"example-trusted-control\"]"
+    },
+    {
+      "id": "native-terminal-pr-checks-cancel.terminal-signal",
+      "displayName": "Cancel terminal PR validation natively",
+      "workflowPath": ".github/workflows/native-terminal-pr-checks-cancel.yml",
+      "jobId": "terminal-signal",
+      "dependencies": [],
+      "runnerClass": "linux-self-hosted",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"Linux\",\"example-trusted-control\"]"
+    },
+    {
+      "id": "node-modules-cache.populate",
+      "displayName": "Save the Node.js dependency cache",
+      "workflowPath": ".github/workflows/node-modules-cache.yml",
+      "jobId": "populate",
+      "dependencies": [],
+      "runnerClass": "hosted-control",
+      "costClass": "light",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"ubuntu-24.04\"]"
+    },
+    {
+      "id": "production-deploy-dispatch.dispatch-production-e2e",
+      "displayName": "Dispatch production onboarding E2E",
+      "workflowPath": ".github/workflows/production-deploy-dispatch.yml",
+      "jobId": "dispatch-production-e2e",
+      "dependencies": [],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"Linux\",\"example-trusted-control\"]"
+    },
+    {
+      "id": "promotion-checkpoint.checkpoint",
+      "displayName": "Freeze develop promotion checkpoint",
+      "workflowPath": ".github/workflows/promotion-checkpoint.yml",
+      "jobId": "checkpoint",
+      "dependencies": [],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"Linux\",\"example-trusted-control\"]"
+    },
+    {
+      "id": "refresh-pr-ci-after-base-edit.route-initial-control",
+      "displayName": "Route continuity controllers to available Linux capacity",
+      "workflowPath": ".github/workflows/refresh-pr-ci-after-base-edit.yml",
+      "jobId": "route-initial-control",
+      "dependencies": [],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "\"${{ fromJson(true && vars.CI_HOSTED_LINUX_AVAILABLE != '1' && '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]' || '[\\\"ubuntu-24.04\\\"]') }}\""
+    },
+    {
+      "id": "refresh.fan-out-base-update",
+      "displayName": "Update overlapping pull requests",
+      "workflowPath": ".github/workflows/refresh-pr-ci-after-base-edit.yml",
+      "jobId": "fan-out-base-update",
+      "dependencies": [
+        "route-initial-control"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "\"${{ fromJson(needs.route-initial-control.outputs.control_runner_labels || '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]') }}\""
+    },
+    {
+      "id": "refresh-pr-ci-after-base-edit.cancel-obsolete-ios",
+      "displayName": "Keep PR work current",
+      "workflowPath": ".github/workflows/refresh-pr-ci-after-base-edit.yml",
+      "jobId": "cancel-obsolete-ios",
+      "dependencies": [
+        "route-initial-control"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "\"${{ fromJson(needs.route-initial-control.outputs.control_runner_labels || '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]') }}\""
+    },
+    {
+      "id": "refresh-pr-ci-after-base-edit.resume-retained-ios",
+      "displayName": "Resume retained iOS run",
+      "workflowPath": ".github/workflows/refresh-pr-ci-after-base-edit.yml",
+      "jobId": "resume-retained-ios",
+      "dependencies": [
+        "route-initial-control"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "\"${{ fromJson(needs.route-initial-control.outputs.control_runner_labels || '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]') }}\""
+    },
+    {
+      "id": "refresh-pr-ci-after-base-edit.recheck-promotion-after-evidence",
+      "displayName": "Recheck promotion after evidence",
+      "workflowPath": ".github/workflows/refresh-pr-ci-after-base-edit.yml",
+      "jobId": "recheck-promotion-after-evidence",
+      "dependencies": [
+        "route-initial-control"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "\"${{ fromJson(needs.route-initial-control.outputs.control_runner_labels || '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]') }}\"",
+      "concurrencyCanonical": "{\"cancel-in-progress\":false,\"group\":\"promotion-recheck-${{ github.event.workflow_run.event == 'workflow_dispatch' && format('promotion/develop-{0}', github.event.workflow_run.head_sha) || github.event.workflow_run.head_branch }}\"}"
+    },
+    {
+      "id": "refresh-pr-ci-after-base-edit.cancel-conflicted-pr-ci",
+      "displayName": "Cancel conflicted PR work",
+      "workflowPath": ".github/workflows/refresh-pr-ci-after-base-edit.yml",
+      "jobId": "cancel-conflicted-pr-ci",
+      "dependencies": [
+        "route-initial-control",
+        "fan-out-base-update",
+        "cancel-obsolete-ios"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "\"${{ fromJson(needs.route-initial-control.outputs.control_runner_labels || '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]') }}\""
+    },
+    {
+      "id": "ios-tests.sync-observability-github-token",
+      "displayName": "Sync observability GitHub credential",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "sync-observability-github-token",
+      "dependencies": [],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "legacy-ios-selector",
+      "runsOnCanonical": "[\"self-hosted\",\"Linux\",\"example-trusted-control\"]"
+    },
+    {
+      "id": "ios-tests.route-initial-control",
+      "displayName": "Route iOS planner to available Linux capacity",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "route-initial-control",
+      "dependencies": [],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "\"${{ fromJson(((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch') && vars.CI_HOSTED_LINUX_AVAILABLE != '1' && '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]' || '[\\\"ubuntu-24.04\\\"]') }}\""
+    },
+    {
+      "id": "ios.plan",
+      "displayName": "iOS Change Gate",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "ios-change-gate",
+      "checkContext": "iOS Change Gate",
+      "dependencies": [
+        "route-initial-control"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "legacy-ios-selector",
+      "runsOnCanonical": "\"${{ fromJson(needs.route-initial-control.outputs.control_runner_labels || (((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch') && '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]' || '[\\\"ubuntu-24.04\\\"]')) }}\""
+    },
+    {
+      "id": "ios-tests.release-full-routing-predecessor",
+      "displayName": "Release retained iOS predecessor",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "release-full-routing-predecessor",
+      "dependencies": [
+        "ios-change-gate"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "legacy-ios-selector",
+      "runsOnCanonical": "\"${{ fromJson(needs.ios-change-gate.outputs.control_runner_labels || (((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch') && '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]' || '[\\\"ubuntu-24.04\\\"]')) }}\""
+    },
+    {
+      "id": "ios.await-retained-predecessor",
+      "displayName": "Await retained iOS predecessor",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "await-retained-ios-predecessor",
+      "dependencies": [
+        "ios-change-gate"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "legacy-ios-selector",
+      "runsOnCanonical": "\"${{ fromJson(needs.ios-change-gate.outputs.control_runner_labels || (((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch') && '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]' || '[\\\"ubuntu-24.04\\\"]')) }}\""
+    },
+    {
+      "id": "ios-tests.cancel-deleted-queue-candidate",
+      "displayName": "Cancel deleted queue candidate",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "cancel-deleted-queue-candidate",
+      "dependencies": [
+        "ios-change-gate"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "legacy-ios-selector",
+      "runsOnCanonical": "\"${{ fromJson(needs.ios-change-gate.outputs.control_runner_labels || (((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch') && '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]' || '[\\\"ubuntu-24.04\\\"]')) }}\""
+    },
+    {
+      "id": "ios.confirm-current-pr",
+      "displayName": "Confirm current iOS PR tuple before Mac allocation",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "confirm-current-ios-pr",
+      "dependencies": [
+        "ios-change-gate"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "legacy-ios-selector",
+      "runsOnCanonical": "\"${{ fromJson(needs.ios-change-gate.outputs.control_runner_labels || (((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch') && '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]' || '[\\\"ubuntu-24.04\\\"]')) }}\""
+    },
+    {
+      "id": "ios.release-archive",
+      "displayName": "Verify unsigned Release archive",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "verify-ios-release-archive",
+      "dependencies": [
+        "ios-change-gate",
+        "confirm-current-ios-pr"
+      ],
+      "runnerClass": "macos-physical",
+      "costClass": "expensive",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "typed-ios-native",
+      "runsOnCanonical": "{\"group\":\"${{ ((github.event_name == 'pull_request' || github.event_name == 'merge_group') || (github.event_name == 'workflow_dispatch' && inputs.mac_runner == 'mitchell-reserved') || (github.event_name == 'workflow_dispatch' && inputs.test_scope == 'promotion-evidence')) && 'example-reviewed-pr-macs' || 'example-team-macs' }}\",\"labels\":\"${{ fromJson((github.event_name == 'workflow_dispatch' && inputs.mac_runner == 'mitchell-reserved') && '[\\\"self-hosted\\\",\\\"macOS\\\",\\\"ios-reserved-mitchell\\\"]' || '[\\\"self-hosted\\\",\\\"macOS\\\",\\\"ios-xcode\\\"]') }}\"}",
+      "concurrencyCanonical": "{\"cancel-in-progress\":\"${{ github.event_name == 'pull_request' && github.event.action == 'synchronize' }}\",\"group\":\"ios-${{ fromJSON((github.event_name == 'pull_request' && toJSON(format('pr-{0}', github.event.pull_request.number))) || (github.event_name == 'merge_group' && toJSON(format('mq-{0}', github.event.merge_group.head_ref))) || (github.event_name == 'workflow_dispatch' && toJSON(format('event-{0}', github.run_id))) || toJSON(format('event-{0}', github.run_id))) }}-release-archive\"}"
+    },
+    {
+      "id": "ios.native-build",
+      "displayName": "Build shared native iOS test products",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "build-ios-native-test-products",
+      "dependencies": [
+        "ios-change-gate",
+        "confirm-current-ios-pr"
+      ],
+      "runnerClass": "macos-physical",
+      "costClass": "expensive",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "typed-ios-native",
+      "runsOnCanonical": "{\"group\":\"${{ (( github.event_name == 'workflow_dispatch' && inputs.mac_runner == 'mitchell-reserved' ) || (github.event_name == 'pull_request' || github.event_name == 'merge_group') || inputs.test_scope == 'financial-independence-evidence' || inputs.test_scope == 'shared-cta-evidence' || (github.event_name == 'workflow_dispatch' && inputs.test_scope == 'promotion-evidence')) && 'example-reviewed-pr-macs' || 'example-team-macs' }}\",\"labels\":\"${{ fromJson((github.event_name == 'workflow_dispatch' && inputs.mac_runner == 'mitchell-reserved') && '[\\\"self-hosted\\\",\\\"macOS\\\",\\\"ios-reserved-mitchell\\\"]' || '[\\\"self-hosted\\\",\\\"macOS\\\",\\\"ios-xcode\\\"]') }}\"}",
+      "concurrencyCanonical": "{\"cancel-in-progress\":\"${{ github.event_name == 'pull_request' && github.event.action == 'synchronize' }}\",\"group\":\"ios-${{ fromJSON((github.event_name == 'pull_request' && toJSON(format('pr-{0}', github.event.pull_request.number))) || (github.event_name == 'merge_group' && toJSON(format('mq-{0}', github.event.merge_group.head_ref))) || (github.event_name == 'workflow_dispatch' && toJSON(format('event-{0}', github.run_id))) || toJSON(format('event-{0}', github.run_id))) }}-native-products\"}"
+    },
+    {
+      "id": "ios.native-shards",
+      "displayName": "Test - iOS execution",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "test-ios-execution",
+      "dependencies": [
+        "ios-change-gate",
+        "confirm-current-ios-pr",
+        "build-ios-native-test-products"
+      ],
+      "runnerClass": "macos-physical",
+      "costClass": "expensive",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "typed-ios-native",
+      "runsOnCanonical": "{\"group\":\"${{ (( github.event_name == 'workflow_dispatch' && inputs.mac_runner == 'mitchell-reserved' ) || (github.event_name == 'pull_request' || github.event_name == 'merge_group') || inputs.test_scope == 'financial-independence-evidence' || inputs.test_scope == 'shared-cta-evidence' || (github.event_name == 'workflow_dispatch' && inputs.test_scope == 'promotion-evidence')) && 'example-reviewed-pr-macs' || 'example-team-macs' }}\",\"labels\":\"${{ fromJson((github.event_name == 'workflow_dispatch' && inputs.mac_runner == 'mitchell-reserved') && '[\\\"self-hosted\\\",\\\"macOS\\\",\\\"ios-reserved-mitchell\\\"]' || '[\\\"self-hosted\\\",\\\"macOS\\\",\\\"ios-xcode\\\"]') }}\"}",
+      "concurrencyCanonical": "{\"cancel-in-progress\":\"${{ github.event_name == 'pull_request' && github.event.action == 'synchronize' }}\",\"group\":\"ios-${{ fromJSON((github.event_name == 'pull_request' && toJSON(format('pr-{0}', github.event.pull_request.number))) || (github.event_name == 'merge_group' && toJSON(format('mq-{0}', github.event.merge_group.head_ref))) || (github.event_name == 'workflow_dispatch' && toJSON(format('event-{0}', github.run_id))) || toJSON(format('event-{0}', github.run_id))) }}-native-${{ matrix.lane }}\"}"
+    },
+    {
+      "id": "ios.native-aggregate",
+      "displayName": "Test - iOS",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "test-ios",
+      "checkContext": "Test - iOS",
+      "dependencies": [
+        "ios-change-gate",
+        "await-retained-ios-predecessor",
+        "verify-ios-release-archive",
+        "build-ios-native-test-products",
+        "test-ios-execution",
+        "onboarding-e2e",
+        "chat-plaid-e2e",
+        "income-e2e",
+        "budget-e2e",
+        "prepare-dev-e2e-schema"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "legacy-ios-selector",
+      "runsOnCanonical": "\"${{ fromJson(needs.ios-change-gate.outputs.control_runner_labels || (((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch') && '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]' || '[\\\"ubuntu-24.04\\\"]')) }}\""
+    },
+    {
+      "id": "ios.storekit-aggregate",
+      "displayName": "StoreKit Purchase - iOS",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "storekit-purchase-status",
+      "checkContext": "StoreKit Purchase - iOS",
+      "dependencies": [
+        "ios-change-gate",
+        "build-ios-native-test-products"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "legacy-ios-selector",
+      "runsOnCanonical": "\"${{ fromJson(needs.ios-change-gate.outputs.control_runner_labels || (((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch') && '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]' || '[\\\"ubuntu-24.04\\\"]')) }}\""
+    },
+    {
+      "id": "ios.e2e-build",
+      "displayName": "Build shared iOS E2E test products",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "build-ios-e2e-test-products",
+      "dependencies": [
+        "ios-change-gate",
+        "confirm-current-ios-pr",
+        "prepare-dev-e2e-schema"
+      ],
+      "runnerClass": "macos-physical",
+      "costClass": "expensive",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "legacy-ios-selector",
+      "runsOnCanonical": "{\"group\":\"${{ ((github.event_name == 'pull_request' || github.event_name == 'merge_group') || (github.event_name == 'workflow_dispatch' && inputs.mac_runner == 'mitchell-reserved') || (github.event_name == 'workflow_dispatch' && inputs.test_scope == 'promotion-evidence')) && 'example-reviewed-pr-macs' || 'example-team-macs' }}\",\"labels\":\"${{ fromJson((github.event_name == 'workflow_dispatch' && inputs.mac_runner == 'mitchell-reserved') && '[\\\"self-hosted\\\",\\\"macOS\\\",\\\"ios-reserved-mitchell\\\"]' || '[\\\"self-hosted\\\",\\\"macOS\\\",\\\"ios-xcode\\\"]') }}\"}",
+      "concurrencyCanonical": "{\"cancel-in-progress\":\"${{ github.event_name == 'pull_request' && github.event.action == 'synchronize' }}\",\"group\":\"ios-${{ fromJSON((github.event_name == 'pull_request' && toJSON(format('pr-{0}', github.event.pull_request.number))) || (github.event_name == 'merge_group' && toJSON(format('mq-{0}', github.event.merge_group.head_ref))) || (github.event_name == 'workflow_dispatch' && toJSON(format('event-{0}', github.run_id))) || toJSON(format('event-{0}', github.run_id))) }}-e2e-products\"}"
+    },
+    {
+      "id": "ios.e2e-schema",
+      "displayName": "Verify development E2E schema",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "prepare-dev-e2e-schema",
+      "dependencies": [
+        "ios-change-gate"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "light",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "legacy-ios-selector",
+      "runsOnCanonical": "\"${{ fromJson(needs.ios-change-gate.outputs.control_runner_labels || (((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch') && '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]' || '[\\\"ubuntu-24.04\\\"]')) }}\""
+    },
+    {
+      "id": "ios.e2e-onboarding",
+      "displayName": "Real-server E2E execution (onboarding)",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "onboarding-e2e",
+      "dependencies": [
+        "ios-change-gate",
+        "confirm-current-ios-pr",
+        "build-ios-e2e-test-products",
+        "prepare-dev-e2e-schema"
+      ],
+      "runnerClass": "macos-physical",
+      "costClass": "expensive",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "legacy-ios-selector",
+      "runsOnCanonical": "{\"group\":\"${{ ((github.event_name == 'pull_request' || github.event_name == 'merge_group') || (github.event_name == 'workflow_dispatch' && inputs.mac_runner == 'mitchell-reserved') || (github.event_name == 'workflow_dispatch' && inputs.test_scope == 'promotion-evidence')) && 'example-reviewed-pr-macs' || 'example-team-macs' }}\",\"labels\":\"${{ fromJson((github.event_name == 'workflow_dispatch' && inputs.mac_runner == 'mitchell-reserved') && '[\\\"self-hosted\\\",\\\"macOS\\\",\\\"ios-reserved-mitchell\\\"]' || '[\\\"self-hosted\\\",\\\"macOS\\\",\\\"ios-xcode\\\"]') }}\"}",
+      "concurrencyCanonical": "{\"cancel-in-progress\":\"${{ github.event_name == 'pull_request' && github.event.action == 'synchronize' }}\",\"group\":\"ios-${{ fromJSON((github.event_name == 'pull_request' && toJSON(format('pr-{0}', github.event.pull_request.number))) || (github.event_name == 'merge_group' && toJSON(format('mq-{0}', github.event.merge_group.head_ref))) || (github.event_name == 'workflow_dispatch' && toJSON(format('event-{0}', github.run_id))) || toJSON(format('event-{0}', github.run_id))) }}-onboarding\"}"
+    },
+    {
+      "id": "ios.e2e-chat-plaid",
+      "displayName": "Real-server E2E execution (chat-plaid)",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "chat-plaid-e2e",
+      "dependencies": [
+        "ios-change-gate",
+        "confirm-current-ios-pr",
+        "build-ios-e2e-test-products",
+        "prepare-dev-e2e-schema"
+      ],
+      "runnerClass": "macos-physical",
+      "costClass": "expensive",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "legacy-ios-selector",
+      "runsOnCanonical": "{\"group\":\"${{ ((github.event_name == 'pull_request' || github.event_name == 'merge_group') || (github.event_name == 'workflow_dispatch' && inputs.mac_runner == 'mitchell-reserved') || (github.event_name == 'workflow_dispatch' && inputs.test_scope == 'promotion-evidence')) && 'example-reviewed-pr-macs' || 'example-team-macs' }}\",\"labels\":\"${{ fromJson((github.event_name == 'workflow_dispatch' && inputs.mac_runner == 'mitchell-reserved') && '[\\\"self-hosted\\\",\\\"macOS\\\",\\\"ios-reserved-mitchell\\\"]' || '[\\\"self-hosted\\\",\\\"macOS\\\",\\\"ios-xcode\\\"]') }}\"}",
+      "concurrencyCanonical": "{\"cancel-in-progress\":\"${{ github.event_name == 'pull_request' && github.event.action == 'synchronize' }}\",\"group\":\"ios-${{ fromJSON((github.event_name == 'pull_request' && toJSON(format('pr-{0}', github.event.pull_request.number))) || (github.event_name == 'merge_group' && toJSON(format('mq-{0}', github.event.merge_group.head_ref))) || (github.event_name == 'workflow_dispatch' && toJSON(format('event-{0}', github.run_id))) || toJSON(format('event-{0}', github.run_id))) }}-chat-plaid\"}"
+    },
+    {
+      "id": "ios.e2e-income",
+      "displayName": "Real-server E2E execution (income)",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "income-e2e",
+      "dependencies": [
+        "ios-change-gate",
+        "confirm-current-ios-pr",
+        "build-ios-e2e-test-products",
+        "prepare-dev-e2e-schema"
+      ],
+      "runnerClass": "macos-physical",
+      "costClass": "expensive",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "legacy-ios-selector",
+      "runsOnCanonical": "{\"group\":\"${{ ((github.event_name == 'pull_request' || github.event_name == 'merge_group') || (github.event_name == 'workflow_dispatch' && inputs.mac_runner == 'mitchell-reserved') || (github.event_name == 'workflow_dispatch' && inputs.test_scope == 'promotion-evidence')) && 'example-reviewed-pr-macs' || 'example-team-macs' }}\",\"labels\":\"${{ fromJson((github.event_name == 'workflow_dispatch' && inputs.mac_runner == 'mitchell-reserved') && '[\\\"self-hosted\\\",\\\"macOS\\\",\\\"ios-reserved-mitchell\\\"]' || '[\\\"self-hosted\\\",\\\"macOS\\\",\\\"ios-xcode\\\"]') }}\"}",
+      "concurrencyCanonical": "{\"cancel-in-progress\":\"${{ github.event_name == 'pull_request' && github.event.action == 'synchronize' }}\",\"group\":\"ios-${{ fromJSON((github.event_name == 'pull_request' && toJSON(format('pr-{0}', github.event.pull_request.number))) || (github.event_name == 'merge_group' && toJSON(format('mq-{0}', github.event.merge_group.head_ref))) || (github.event_name == 'workflow_dispatch' && toJSON(format('event-{0}', github.run_id))) || toJSON(format('event-{0}', github.run_id))) }}-income\"}"
+    },
+    {
+      "id": "ios.e2e-budget",
+      "displayName": "Real-server E2E execution",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "budget-e2e",
+      "dependencies": [
+        "ios-change-gate",
+        "confirm-current-ios-pr",
+        "build-ios-e2e-test-products",
+        "prepare-dev-e2e-schema"
+      ],
+      "runnerClass": "macos-physical",
+      "costClass": "expensive",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "legacy-ios-selector",
+      "runsOnCanonical": "{\"group\":\"${{ ((github.event_name == 'pull_request' || github.event_name == 'merge_group') || (github.event_name == 'workflow_dispatch' && inputs.mac_runner == 'mitchell-reserved') || (github.event_name == 'workflow_dispatch' && inputs.test_scope == 'promotion-evidence')) && 'example-reviewed-pr-macs' || 'example-team-macs' }}\",\"labels\":\"${{ fromJson((github.event_name == 'workflow_dispatch' && inputs.mac_runner == 'mitchell-reserved') && '[\\\"self-hosted\\\",\\\"macOS\\\",\\\"ios-reserved-mitchell\\\"]' || '[\\\"self-hosted\\\",\\\"macOS\\\",\\\"ios-xcode\\\"]') }}\"}",
+      "concurrencyCanonical": "{\"cancel-in-progress\":\"${{ github.event_name == 'pull_request' && github.event.action == 'synchronize' }}\",\"group\":\"ios-${{ fromJSON((github.event_name == 'pull_request' && toJSON(format('pr-{0}', github.event.pull_request.number))) || (github.event_name == 'merge_group' && toJSON(format('mq-{0}', github.event.merge_group.head_ref))) || (github.event_name == 'workflow_dispatch' && toJSON(format('event-{0}', github.run_id))) || toJSON(format('event-{0}', github.run_id))) }}-budget-${{ matrix.shard }}\"}"
+    },
+    {
+      "id": "ios-tests.budget-e2e-video-processing",
+      "displayName": "Budget E2E video processing (non-gating)",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "budget-e2e-video-processing",
+      "dependencies": [
+        "ios-change-gate",
+        "budget-e2e"
+      ],
+      "runnerClass": "linux-self-hosted",
+      "costClass": "medium",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "legacy-ios-selector",
+      "runsOnCanonical": "\"${{ fromJson((((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch')) && (vars.IOS_CONTROL_RUNNER_LABELS || '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"linux-remote\\\"]') || '[\\\"ubuntu-24.04\\\"]') }}\""
+    },
+    {
+      "id": "ios.e2e-aggregate",
+      "displayName": "Onboarding E2E",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "onboarding-e2e-status",
+      "checkContext": "Onboarding E2E",
+      "dependencies": [
+        "ios-change-gate",
+        "onboarding-e2e",
+        "chat-plaid-e2e",
+        "income-e2e",
+        "budget-e2e",
+        "prepare-dev-e2e-schema"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "legacy-ios-selector",
+      "runsOnCanonical": "\"${{ fromJson(needs.ios-change-gate.outputs.control_runner_labels || (((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch') && '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]' || '[\\\"ubuntu-24.04\\\"]')) }}\""
+    },
+    {
+      "id": "ios.remove-run-artifacts",
+      "displayName": "Remove run artifacts after success",
+      "workflowPath": ".github/workflows/ios-tests.yml",
+      "jobId": "remove-run-artifacts-after-success",
+      "dependencies": [
+        "ios-change-gate",
+        "verify-ios-release-archive",
+        "build-ios-native-test-products",
+        "test-ios-execution",
+        "build-ios-e2e-test-products",
+        "onboarding-e2e",
+        "chat-plaid-e2e",
+        "income-e2e",
+        "budget-e2e",
+        "budget-e2e-video-processing",
+        "test-ios"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "\"${{ fromJson(needs.ios-change-gate.outputs.control_runner_labels || (((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch') && '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]' || '[\\\"ubuntu-24.04\\\"]')) }}\""
+    },
+    {
+      "id": "pr-checks.route-initial-control",
+      "displayName": "Route PR planner to available Linux capacity",
+      "workflowPath": ".github/workflows/pr-checks.yml",
+      "jobId": "route-initial-control",
+      "dependencies": [],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "\"${{ fromJson(((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch') && vars.CI_HOSTED_LINUX_AVAILABLE != '1' && '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]' || '[\\\"ubuntu-24.04\\\"]') }}\""
+    },
+    {
+      "id": "pr.plan",
+      "displayName": "Plan PR validation",
+      "workflowPath": ".github/workflows/pr-checks.yml",
+      "jobId": "plan-pr-validation",
+      "dependencies": [
+        "route-initial-control"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "none",
+      "selectionOwner": "always",
+      "runsOnCanonical": "\"${{ fromJson(needs.route-initial-control.outputs.control_runner_labels || (((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch') && '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]' || '[\\\"ubuntu-24.04\\\"]')) }}\""
+    },
+    {
+      "id": "pr.lint",
+      "displayName": "Lint changed code",
+      "workflowPath": ".github/workflows/pr-checks.yml",
+      "jobId": "lint",
+      "checkContext": "Lint changed code",
+      "dependencies": [
+        "plan-pr-validation"
+      ],
+      "runnerClass": "linux-hosted-overflow",
+      "costClass": "light",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "always",
+      "runsOnCanonical": "\"${{ fromJson(needs.plan-pr-validation.outputs.pr_linux_overflow_labels) }}\""
+    },
+    {
+      "id": "pr-checks.validation-policy",
+      "displayName": "Evaluate PR validation policy",
+      "workflowPath": ".github/workflows/pr-checks.yml",
+      "jobId": "validation-policy",
+      "dependencies": [
+        "plan-pr-validation"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "typed-pr-validation",
+      "runsOnCanonical": "\"${{ fromJson(needs.plan-pr-validation.outputs.control_runner_labels || (((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch') && '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]' || '[\\\"ubuntu-24.04\\\"]')) }}\""
+    },
+    {
+      "id": "pr.workflow-contracts",
+      "displayName": "Workflow contracts",
+      "workflowPath": ".github/workflows/pr-checks.yml",
+      "jobId": "workflow-contracts",
+      "dependencies": [
+        "plan-pr-validation"
+      ],
+      "runnerClass": "linux-external-preferred",
+      "costClass": "light",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "typed-pr-validation",
+      "runsOnCanonical": "\"${{ fromJson(needs.plan-pr-validation.outputs.pr_linux_runner_labels) }}\""
+    },
+    {
+      "id": "pr.server-static",
+      "displayName": "Server static validation",
+      "workflowPath": ".github/workflows/pr-checks.yml",
+      "jobId": "server-static",
+      "dependencies": [
+        "plan-pr-validation"
+      ],
+      "runnerClass": "linux-external-preferred",
+      "costClass": "medium",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "typed-pr-validation",
+      "runsOnCanonical": "\"${{ fromJson(needs.plan-pr-validation.outputs.pr_linux_runner_labels) }}\""
+    },
+    {
+      "id": "pr.server-process",
+      "displayName": "Server process-heavy tests",
+      "workflowPath": ".github/workflows/pr-checks.yml",
+      "jobId": "server-process-tests",
+      "dependencies": [
+        "plan-pr-validation"
+      ],
+      "runnerClass": "linux-external-preferred",
+      "costClass": "medium",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "typed-pr-validation",
+      "runsOnCanonical": "\"${{ fromJson(needs.plan-pr-validation.outputs.pr_linux_runner_labels) }}\""
+    },
+    {
+      "id": "pr.server-shards",
+      "displayName": "Server tests",
+      "workflowPath": ".github/workflows/pr-checks.yml",
+      "jobId": "server-tests",
+      "dependencies": [
+        "plan-pr-validation"
+      ],
+      "runnerClass": "linux-hosted-overflow",
+      "costClass": "medium",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "typed-pr-validation",
+      "runsOnCanonical": "\"${{ fromJson(needs.plan-pr-validation.outputs.pr_linux_overflow_labels) }}\""
+    },
+    {
+      "id": "pr.targeted-server",
+      "displayName": "Targeted server tests",
+      "workflowPath": ".github/workflows/pr-checks.yml",
+      "jobId": "targeted-server-tests",
+      "dependencies": [
+        "plan-pr-validation"
+      ],
+      "runnerClass": "linux-external-preferred",
+      "costClass": "medium",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "typed-pr-validation",
+      "runsOnCanonical": "\"${{ fromJson(needs.plan-pr-validation.outputs.pr_linux_runner_labels) }}\""
+    },
+    {
+      "id": "pr.ios-contracts",
+      "displayName": "iOS-server contracts",
+      "workflowPath": ".github/workflows/pr-checks.yml",
+      "jobId": "ios-contracts",
+      "dependencies": [
+        "plan-pr-validation"
+      ],
+      "runnerClass": "linux-external-preferred",
+      "costClass": "medium",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "typed-pr-validation",
+      "runsOnCanonical": "\"${{ fromJson(needs.plan-pr-validation.outputs.pr_linux_runner_labels) }}\""
+    },
+    {
+      "id": "pr.aggregate",
+      "displayName": "Validate pull request changes",
+      "workflowPath": ".github/workflows/pr-checks.yml",
+      "jobId": "validate",
+      "checkContext": "Validate pull request changes",
+      "dependencies": [
+        "plan-pr-validation",
+        "lint",
+        "validation-policy",
+        "workflow-contracts",
+        "server-static",
+        "server-process-tests",
+        "server-tests",
+        "targeted-server-tests",
+        "ios-contracts",
+        "database-integration"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "typed-pr-validation",
+      "runsOnCanonical": "\"${{ fromJson(needs.plan-pr-validation.outputs.control_runner_labels || (((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch') && '[\\\"self-hosted\\\",\\\"Linux\\\",\\\"example-trusted-control\\\"]' || '[\\\"ubuntu-24.04\\\"]')) }}\""
+    },
+    {
+      "id": "pr.database",
+      "displayName": "Run database integration tests",
+      "workflowPath": ".github/workflows/pr-checks.yml",
+      "jobId": "database-integration",
+      "dependencies": [
+        "plan-pr-validation"
+      ],
+      "runnerClass": "linux-external-preferred",
+      "costClass": "medium",
+      "evidencePolicy": "patch-equivalent",
+      "selectionOwner": "typed-pr-validation",
+      "runsOnCanonical": "\"${{ fromJson(needs.plan-pr-validation.outputs.pr_database_runner_labels) }}\""
+    },
+    {
+      "id": "runner-activation-complete.activation-complete",
+      "displayName": "Confirm runner activation",
+      "workflowPath": ".github/workflows/runner-activation-complete.yml",
+      "jobId": "activation-complete",
+      "dependencies": [],
+      "runnerClass": "self-hosted-dynamic",
+      "costClass": "medium",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"${{ github.event.client_payload.host_label }}\"]"
+    },
+    {
+      "id": "trusted-production-onboarding-e2e.validate-trusted-ref",
+      "displayName": "Validate trusted production E2E ref",
+      "workflowPath": ".github/workflows/trusted-production-onboarding-e2e.yml",
+      "jobId": "validate-trusted-ref",
+      "dependencies": [],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "exact-head",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"Linux\",\"example-trusted-control\"]"
+    },
+    {
+      "id": "trusted-production-onboarding-e2e.production-onboarding-e2e",
+      "displayName": "Production onboarding E2E execution",
+      "workflowPath": ".github/workflows/trusted-production-onboarding-e2e.yml",
+      "jobId": "production-onboarding-e2e",
+      "dependencies": [
+        "validate-trusted-ref"
+      ],
+      "runnerClass": "macos-physical",
+      "costClass": "expensive",
+      "evidencePolicy": "exact-head",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"macOS\",\"ios-production-e2e\"]"
+    },
+    {
+      "id": "trusted-production-onboarding-e2e.production-video-review",
+      "displayName": "Production onboarding video review (advisory)",
+      "workflowPath": ".github/workflows/trusted-production-onboarding-e2e.yml",
+      "jobId": "production-video-review",
+      "dependencies": [
+        "validate-trusted-ref",
+        "production-onboarding-e2e"
+      ],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "exact-head",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"Linux\",\"example-trusted-control\"]"
+    },
+    {
+      "id": "vendored-linkkit-version-check.check",
+      "displayName": "Compare vendored LinkKit with the latest release",
+      "workflowPath": ".github/workflows/vendored-linkkit-version-check.yml",
+      "jobId": "check",
+      "dependencies": [],
+      "runnerClass": "linux-self-hosted",
+      "costClass": "light",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"Linux\",\"example-trusted-control\"]"
+    },
+    {
+      "id": "video-review-writer.consume",
+      "displayName": "Publish advisory video review findings",
+      "workflowPath": ".github/workflows/video-review-writer.yml",
+      "jobId": "consume",
+      "dependencies": [],
+      "runnerClass": "hosted-control",
+      "costClass": "control",
+      "evidencePolicy": "exact-head",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"Linux\",\"example-trusted-control\"]"
+    },
+    {
+      "id": "xcode-cloud-build-tags.reconcile",
+      "displayName": "Tag successful Xcode Cloud main builds",
+      "workflowPath": ".github/workflows/xcode-cloud-build-tags.yml",
+      "jobId": "reconcile",
+      "dependencies": [],
+      "runnerClass": "linux-self-hosted",
+      "costClass": "light",
+      "evidencePolicy": "none",
+      "selectionOwner": "controller",
+      "runsOnCanonical": "[\"self-hosted\",\"Linux\",\"example-trusted-control\"]"
+    }
+  ]
+}

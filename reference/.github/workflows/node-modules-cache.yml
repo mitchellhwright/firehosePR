@@ -1,0 +1,63 @@
+# GENERATED from ci/workflows/node-modules-cache.ts — edit the source, not this file.
+# Regenerate with: npm run ci:workflows
+
+name: Node.js dependency cache
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - package.json
+      - package-lock.json
+      - .npmrc
+      - ci/src/nodeModulesCache.ts
+      - ci/src/actions/nodeModulesCacheKey.ts
+      - ci/src/actions/installNodeDependencies.ts
+      - .github/workflows/node-modules-cache.yml
+      - .github/workflows/pr-checks.yml
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: node-modules-cache
+  cancel-in-progress: true
+env:
+  npm_config_cache: '${RUNNER_TOOL_CACHE}/npm-cache'
+jobs:
+  populate:
+    name: Save the Node.js dependency cache
+    runs-on:
+      - ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out develop
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up the Node.js runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Compute the dependency cache key
+        id: node-modules-key
+        run: node ci/src/actions/nodeModulesCacheKey.ts
+      - name: Look up the cached Node.js dependencies
+        id: node-modules-lookup
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: node_modules
+          key: '${{ steps.node-modules-key.outputs.key }}'
+          lookup-only: true
+      - name: Install Node.js dependencies
+        if: steps.node-modules-lookup.outputs.cache-hit != 'true'
+        env:
+          RUNNER_ENVIRONMENT: '${{ runner.environment }}'
+        run: node ci/src/actions/installNodeDependencies.ts
+      - name: Save the Node.js dependency cache
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: steps.node-modules-lookup.outputs.cache-hit != 'true'
+        with:
+          path: node_modules
+          key: '${{ steps.node-modules-key.outputs.key }}'

@@ -1,0 +1,23 @@
+# GENERATED from ci/workflows/hosted-linux-admission.ts — edit the source, not this file.
+# Regenerate with: npm run ci:workflows
+
+name: Hosted Linux admission
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0,30 * * * *'
+permissions: {}
+concurrency:
+  group: hosted-linux-admission
+  cancel-in-progress: false
+env:
+  npm_config_cache: '${RUNNER_TOOL_CACHE}/npm-cache'
+jobs:
+  probe:
+    name: Hosted Linux admission probe
+    runs-on:
+      - ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Confirm hosted Linux admission
+        run: echo "GitHub-hosted Linux admission is available."

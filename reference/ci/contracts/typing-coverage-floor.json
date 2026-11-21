@@ -1,0 +1,7 @@
+{
+  "$comment": "Ratchet for ci/scripts/typing-coverage.ts --check. typedEntryPoints counts strict TypeScript files under ci/src and scripts under strict tsc. It may only rise; topLevelMjs, unreachableScripts, and inlineShellLines may only fall. inlineShellLines excludes standalone typed CI action and npm-install launchers, which add run blocks but no maintained shell logic. Documented platform operator commands count as entry points. This tree measures 231 typed entry points, zero top-level .mjs, six unreachable scripts, and 469 maintained shell lines.",
+  "typedEntryPoints": 225,
+  "topLevelMjs": 0,
+  "unreachableScripts": 6,
+  "inlineShellLines": 471
+}

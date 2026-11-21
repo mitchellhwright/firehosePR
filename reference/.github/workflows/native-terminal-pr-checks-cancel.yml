@@ -1,0 +1,29 @@
+# GENERATED from ci/workflows/native-terminal-pr-cancel.ts — edit the source, not this file.
+# Regenerate with: npm run ci:workflows
+
+name: Cancel terminal PR Checks
+on:
+  pull_request_target:
+    types:
+      - closed
+permissions:
+  contents: read
+concurrency:
+  group: '${{ github.event.action == ''closed'' && github.event.pull_request.merged == true && format(''pr-checks-{0}'', github.event.pull_request.number) || format(''terminal-pr-checks-{0}'', github.run_id) }}'
+  cancel-in-progress: true
+env:
+  npm_config_cache: '${RUNNER_TOOL_CACHE}/npm-cache'
+jobs:
+  terminal-signal:
+    name: Cancel terminal PR validation natively
+    if: github.event.action == 'opened'
+    runs-on:
+      - self-hosted
+      - Linux
+      - example-trusted-control
+    timeout-minutes: 1
+    steps:
+      - name: Read repository metadata
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false

@@ -1,0 +1,91 @@
+# GENERATED from ci/workflows/install-runner-cleanup-host.ts — edit the source, not this file.
+# Regenerate with: npm run ci:workflows
+
+name: Install runner cleanup hook host
+run-name: 'Runner maintenance - ${{ inputs.host_label }}${{ inputs.correlation_id && format('' ({0})'', inputs.correlation_id) || '''' }}'
+on:
+  workflow_dispatch:
+    inputs:
+      host_label:
+        description: Durable physical runner host label
+        required: true
+        type: string
+      platform:
+        description: Host operating system
+        required: true
+        type: choice
+        options:
+          - macos
+          - linux
+      audit_only:
+        description: Verify the active hook without changing the listener
+        required: true
+        type: boolean
+      correlation_id:
+        description: Opaque token the dispatching fleet run uses to find this run
+        required: false
+        type: string
+permissions:
+  actions: read
+  contents: read
+concurrency:
+  group: 'install-runner-cleanup-hook-${{ inputs.host_label }}'
+  cancel-in-progress: false
+env:
+  npm_config_cache: '${RUNNER_TOOL_CACHE}/npm-cache'
+jobs:
+  install:
+    name: 'Install runner cleanup hook (${{ inputs.host_label }})'
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    runs-on:
+      - self-hosted
+      - '${{ inputs.host_label }}'
+    timeout-minutes: 10
+    outputs:
+      activation_required: '${{ steps.installer.outputs.activation_required }}'
+    steps:
+      - name: Check out trusted cleanup source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node for typed maintenance
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Create bounded runner activation handoff token
+        id: activation-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        if: inputs.audit_only != true
+        with:
+          app-id: '${{ secrets.PROMOTION_CHECKPOINT_APP_ID }}'
+          private-key: '${{ secrets.PROMOTION_CHECKPOINT_APP_PRIVATE_KEY }}'
+          permission-contents: write
+          skip-token-revoke: true
+      - name: Audit active completed-job cleanup hook
+        if: inputs.audit_only == true
+        env:
+          EXPECTED_PLATFORM: '${{ inputs.platform }}'
+        run: node ci/src/actions/auditRunnerEnvironment.ts
+      - name: Install completed-job cleanup hook
+        id: installer
+        if: inputs.audit_only != true
+        env:
+          EXAMPLE_STEP_NAME: Install completed-job cleanup hook
+          EXAMPLE_STEP_OWNER: infrastructure
+          EXAMPLE_STEP_NEXT_ACTION: read the activation log named in the error; the listener is left online if activation cannot start
+          ACTIVATION_CONTEXT: 'runner-environment/${{ inputs.host_label }}/${{ github.run_id }}/${{ github.run_attempt }}'
+          EXPECTED_PLATFORM: '${{ inputs.platform }}'
+          GITHUB_TOKEN_VALUE: '${{ steps.activation-token.outputs.token }}'
+          HOST_LABEL: '${{ inputs.host_label }}'
+        run: bash scripts/ci/lib/run-step.sh scripts/ci/install-runner-cleanup-host/install/install-completed-job-cleanup-hook.sh
+      - name: Revoke unhanded activation token
+        if: always() && steps.activation-token.outcome == 'success' && steps.installer.outputs.token_handed_off != 'true'
+        shell: bash
+        env:
+          EXAMPLE_STEP_NAME: Revoke unhanded activation token
+          EXAMPLE_STEP_OWNER: automation
+          EXAMPLE_STEP_NEXT_ACTION: revoke the installation token by hand if this keeps failing; it expires within the hour regardless
+          EXAMPLE_SUMMARY_TITLE: Activation token revocation
+          EXPECTED_PLATFORM: '${{ inputs.platform }}'
+          GH_TOKEN: '${{ steps.activation-token.outputs.token }}'
+          HOST_LABEL: '${{ inputs.host_label }}'
+        run: bash scripts/ci/lib/run-step.sh scripts/ci/install-runner-cleanup-host/install/revoke-unhanded-activation-token.sh

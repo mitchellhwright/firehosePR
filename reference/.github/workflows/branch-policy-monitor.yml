@@ -1,0 +1,103 @@
+# GENERATED from ci/workflows/branch-policy-monitor.ts — edit the source, not this file.
+# Regenerate with: npm run ci:workflows
+
+name: Branch Policy Drift Monitor
+on:
+  workflow_dispatch:
+    inputs:
+      synthetic_drift:
+        description: Report a synthetic drift failure to test notifications; changes no setting
+        type: boolean
+        required: false
+        default: false
+permissions: {}
+concurrency:
+  group: branch-policy-monitor
+  cancel-in-progress: false
+env:
+  npm_config_cache: '${RUNNER_TOOL_CACHE}/npm-cache'
+jobs:
+  confirm-activation:
+    name: Confirm branch policy monitor activation
+    runs-on:
+      - self-hosted
+      - Linux
+      - example-trusted-control
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - name: Check out the default-branch monitor
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: '${{ github.event.repository.default_branch }}'
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up Node for typed maintenance
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Confirm the monitor is activated
+        uses: ./.github/actions/typed-step-runner
+        env:
+          EXAMPLE_STEP_NAME: Confirm the monitor is activated
+          EXAMPLE_STEP_OWNER: infrastructure
+          EXAMPLE_STEP_NEXT_ACTION: 'follow docs/security/branch-policy-monitor.md activation; an inactive monitor is expected until #4085 enables it'
+          BRANCH_POLICY_MONITOR_ENABLED: '${{ vars.BRANCH_POLICY_MONITOR_ENABLED }}'
+          DEFAULT_BRANCH: '${{ github.event.repository.default_branch }}'
+        with:
+          entry: ci/src/actions/confirmBranchPolicyMonitorActivation.ts
+  inspect:
+    name: Inspect branch protection and admin access
+    needs:
+      - confirm-activation
+    runs-on:
+      - ubuntu-24.04
+    permissions:
+      contents: read
+    environment: branch-policy-monitor
+    timeout-minutes: 10
+    steps:
+      - name: Check out the default-branch monitor
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: '${{ github.event.repository.default_branch }}'
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up Node for typed maintenance
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Create read-only inspection token
+        id: inspection-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: '${{ secrets.BRANCH_POLICY_MONITOR_APP_ID }}'
+          private-key: '${{ secrets.BRANCH_POLICY_MONITOR_APP_PRIVATE_KEY }}'
+          owner: '${{ github.repository_owner }}'
+          repositories: '${{ github.event.repository.name }}'
+          permission-administration: read
+          permission-metadata: read
+      - name: Compare live controls with the approved baseline
+        uses: ./.github/actions/typed-step-runner
+        env:
+          EXAMPLE_STEP_NAME: Compare live controls with the approved baseline
+          EXAMPLE_STEP_OWNER: infrastructure
+          EXAMPLE_STEP_NEXT_ACTION: 'drift: escalate to #4085; inspection failure: repair read access, never grant write or edit the baseline'
+          BRANCH_POLICY_MONITOR_TOKEN: '${{ steps.inspection-token.outputs.token }}'
+          BRANCH_POLICY_REPORT_PATH: '${{ runner.temp }}/branch-policy-report.json'
+          GITHUB_API_URL: '${{ github.api_url }}'
+          GITHUB_REPOSITORY: '${{ github.repository }}'
+          BRANCH_POLICY_SYNTHETIC_DRIFT: '${{ inputs.synthetic_drift }}'
+        with:
+          entry: ci/src/actions/checkBranchPolicyDrift.ts
+      - name: Keep the observation report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: branch-policy-report
+          path: '${{ runner.temp }}/branch-policy-report.json'
+          if-no-files-found: warn
+          retention-days: 90

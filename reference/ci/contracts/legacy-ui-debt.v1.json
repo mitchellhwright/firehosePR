@@ -1,0 +1,56 @@
+{
+  "schema": "example.legacy-ui-debt.v1",
+  "baselineCount": 10,
+  "entries": [
+    {
+      "fingerprint": "be731dc7976b8d8d13c54299c82598619a4b4eb696e816cdb4acaede55ec7087",
+      "surfaceId": ".github/workflows/ios-tests.yml",
+      "message": "GitHub-visible name is opaque or generic: Test - iOS"
+    },
+    {
+      "fingerprint": "dfe6187e6334d76dbf2fedeba187396915f268126666bb8338ccf5980f279e91",
+      "surfaceId": ".github/workflows/ios-tests.yml",
+      "message": "Expected UI name \"Validate iOS changes\"; found \"Test - iOS\""
+    },
+    {
+      "fingerprint": "21f5983ef6df6d87b6f18d0345e586e69d9c059e4be067e52fe534b24c10573d",
+      "surfaceId": ".github/workflows/ios-tests.yml:await-retained-ios-predecessor:await-retained-ios-predecessor",
+      "message": "GitHub-visible name is opaque or generic: Await retained iOS predecessor (${{ needs.ios-change-gate.outputs.base_update_predecessor_run_id }} at ${{ needs.ios-change-gate.outputs.base_update_deferred_base_sha }})${{ needs.ios-change-gate.outputs.base_update_predecessor_run_ids != '' && format(' [ancestors: {0}]', needs.ios-change-gate.outputs.base_update_predecessor_run_ids) || '' }}"
+    },
+    {
+      "fingerprint": "b3fd3b3df7e6b7e28032ea12a9aa88f6cfef7565c05af69ba78da5936784b443",
+      "surfaceId": ".github/workflows/ios-tests.yml:await-retained-ios-predecessor:await-retained-ios-predecessor",
+      "message": "Expected UI name \"Await retained iOS predecessor\"; found \"Await retained iOS predecessor (${{ needs.ios-change-gate.outputs.base_update_predecessor_run_id }} at ${{ needs.ios-change-gate.outputs.base_update_deferred_base_sha }})${{ needs.ios-change-gate.outputs.base_update_predecessor_run_ids != '' && format(' [ancestors: {0}]', needs.ios-change-gate.outputs.base_update_predecessor_run_ids) || '' }}\""
+    },
+    {
+      "fingerprint": "5884bc9e8d931a5c86cad01345c95debd8f6a8619eae863cb7d89b05d2284bc6",
+      "surfaceId": ".github/workflows/ios-tests.yml:budget-e2e",
+      "message": "GitHub-visible name is opaque or generic: Real-server E2E execution (budget-${{ matrix.shard }})"
+    },
+    {
+      "fingerprint": "1edee40bcad352f0530a5c92dff2d2a333360ed38f9d1e3f31d931ac9da247a5",
+      "surfaceId": ".github/workflows/ios-tests.yml:budget-e2e",
+      "message": "Expected UI name \"Real-server E2E execution\"; found \"Real-server E2E execution (budget-${{ matrix.shard }})\""
+    },
+    {
+      "fingerprint": "e70e7f4b4ce77656b0662332fe0f17125e690a5010b70d8beceba792036984df",
+      "surfaceId": ".github/workflows/pr-checks.yml",
+      "message": "GitHub-visible name is opaque or generic: PR Checks"
+    },
+    {
+      "fingerprint": "26a8718b2e3900a4e33a44069af5171e0e2591f5efaea55c17ca381849406431",
+      "surfaceId": ".github/workflows/pr-checks.yml",
+      "message": "Expected UI name \"Validate pull request changes\"; found \"PR Checks\""
+    },
+    {
+      "fingerprint": "25eeae75cc50ef3498752aba81acf93be242eaeb3325a2ae55e8b2b9071042a1",
+      "surfaceId": ".github/workflows/pr-checks.yml:server-tests",
+      "message": "GitHub-visible name is opaque or generic: Server tests (${{ matrix.shard }}/4)"
+    },
+    {
+      "fingerprint": "4e44fddea509adb4c934d5a49d1385504358344c578837015ba9ca8f379ece14",
+      "surfaceId": ".github/workflows/pr-checks.yml:server-tests",
+      "message": "Expected UI name \"Server tests\"; found \"Server tests (${{ matrix.shard }}/4)\""
+    }
+  ]
+}

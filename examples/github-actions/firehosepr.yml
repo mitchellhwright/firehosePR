@@ -1,0 +1,98 @@
+name: FirehosePR
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      count: ${{ steps.plan.outputs.count }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
+        run: |
+          base=HEAD
+          full=--full
+          if [ "$EVENT" = pull_request ]; then
+            base=HEAD^1
+            full=
+          elif [ "$EVENT" = merge_group ]; then
+            base="$QUEUE_BASE"
+            full=
+          fi
+          npx --no-install fpr plan --base "$base" --head HEAD $full --out plan.json
+          node --input-type=module <<'JS'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          const plan = JSON.parse(readFileSync('plan.json', 'utf8'));
+          const include = plan.lanes.flatMap(lane => lane.shards.map((shard, index) => ({
+            id: `${lane.id}-${index}`, command: [...lane.command, ...shard.tests],
+          })));
+          if (include.length > 256) throw Error('GitHub matrix limit exceeded; reduce shards or lanes');
+          appendFileSync(process.env.GITHUB_OUTPUT, `count=${include.length}\nmatrix=${JSON.stringify({include})}\n`);
+          JS
+  tests:
+    needs: plan
+    if: needs.plan.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    name: Test ${{ matrix.id }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - env:
+          COMMAND_JSON: ${{ toJSON(matrix.command) }}
+        run: |
+          node --input-type=module <<'JS'
+          import { spawnSync } from 'node:child_process';
+          const [command, ...args] = JSON.parse(process.env.COMMAND_JSON);
+          const result = spawnSync(command, args, {stdio: 'inherit', shell: false});
+          if (result.error) throw result.error;
+          process.exit(result.status ?? 1);
+          JS
+  gate:
+    name: FirehosePR gate
+    if: always()
+    needs: [plan, tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          TEST_RESULT: ${{ needs.tests.result }}
+          COUNT: ${{ needs.plan.outputs.count }}
+        run: |
+          test "$PLAN_RESULT" = success
+          if [ "$COUNT" = 0 ]; then
+            test "$TEST_RESULT" = skipped
+          else
+            test "$TEST_RESULT" = success
+          fi

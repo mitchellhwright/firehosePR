@@ -1,0 +1,88 @@
+# GENERATED from ci/workflows/install-runner-cleanup-hooks.ts — edit the source, not this file.
+# Regenerate with: npm run ci:workflows
+
+name: Install runner cleanup hooks
+on:
+  workflow_dispatch:
+    inputs:
+      audit_only:
+        description: Verify that every active listener loaded the installed cleanup hook
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - ci/src/maintainedRunnerHosts.ts
+      - .github/workflows/install-runner-cleanup-host.yml
+      - .github/workflows/runner-activation-complete.yml
+      - ci/src/runnerHooks/jobCompleted.ts
+      - ci/src/actions/installJobCompletedHook.ts
+      - scripts/ci/install-runner-cleanup-host/install/install-completed-job-cleanup-hook.sh
+      - ci/src/actions/auditRunnerEnvironment.ts
+      - scripts/activate-github-actions-runner-environment.sh
+      - ci/src/actions/confirmRunnerActivation.ts
+      - ci/src/actions/removeOrphanActivationMarkers.ts
+      - ci/src/actions/awaitLogLine.ts
+      - ci/src/ios/shared/awaitLogLine.ts
+      - scripts/setup-github-linux-runner.sh
+      - scripts/setup-github-macos-runner.sh
+      - scripts/provision-github-macos-runner-tools.sh
+permissions:
+  contents: read
+env:
+  npm_config_cache: '${RUNNER_TOOL_CACHE}/npm-cache'
+jobs:
+  reconcile-host:
+    name: 'Dispatch runner maintenance (${{ matrix.host_label }})'
+    runs-on:
+      - self-hosted
+      - Linux
+      - example-trusted-control
+    permissions:
+      actions: write
+      contents: read
+    timeout-minutes: 2
+    strategy:
+      matrix:
+        include:
+          - host_label: ios-host-mitchell
+            platform: macos
+          - host_label: ios-host-ottavio
+            platform: macos
+          - host_label: ios-host-sagaris
+            platform: macos
+          - host_label: ios-host-sagent
+            platform: macos
+          - host_label: ios-host-tg1
+            platform: macos
+          - host_label: host-instaip
+            platform: linux
+          - host_label: host-instaip2
+            platform: linux
+      fail-fast: false
+      max-parallel: 5
+    steps:
+      - name: Check out the dispatcher scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up Node for typed maintenance
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.5.0
+          package-manager-cache: false
+      - name: Validate maintenance dispatch ref
+        env:
+          DISPATCH_REF: '${{ github.ref }}'
+        run: node ci/src/actions/validateMaintenanceDispatchRef.ts
+      - name: Dispatch isolated exact-host maintenance
+        env:
+          AUDIT_ONLY: '${{ inputs.audit_only == true }}'
+          GH_TOKEN: '${{ github.token }}'
+          HOST_LABEL: '${{ matrix.host_label }}'
+          PLATFORM: '${{ matrix.platform }}'
+        run: node ci/src/actions/dispatchRunnerMaintenance.ts

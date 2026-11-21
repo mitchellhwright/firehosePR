@@ -1,0 +1,32 @@
+# GENERATED from ci/workflows/linux-runner-heartbeat.ts — edit the source, not this file.
+# Regenerate with: npm run ci:workflows
+
+name: Linux runner heartbeat
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: linux-runner-heartbeat
+  cancel-in-progress: true
+env:
+  npm_config_cache: '${RUNNER_TOOL_CACHE}/npm-cache'
+jobs:
+  portable-heartbeat:
+    name: External Linux heartbeat (portable)
+    runs-on: '${{ fromJson(vars.PR_PORTABLE_RUNNER_LABELS || ''["self-hosted","Linux","example-lane","linux-remote"]'') }}'
+    steps:
+      - name: Report healthy runner
+        env:
+          RUNNER_NAME: '${{ runner.name }}'
+        run: 'echo "Portable external Linux runner is healthy: $RUNNER_NAME"'
+  database-heartbeat:
+    name: External Linux heartbeat (database)
+    runs-on: '${{ fromJson(vars.PR_DATABASE_RUNNER_LABELS || ''["self-hosted","Linux","example-lane","ARM64","docker-capable","linux-remote"]'') }}'
+    steps:
+      - name: Report healthy runner
+        env:
+          RUNNER_NAME: '${{ runner.name }}'
+        run: 'echo "Database external Linux runner is healthy: $RUNNER_NAME"'
