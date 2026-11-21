@@ -64,6 +64,6 @@ npm ci
 npm run check
 ```
 
-The repository uses its own planner to run a complete, inventory-checked test matrix. Checks compile strict TypeScript, execute regression tests, audit export patterns, and install a packed tarball into a temporary project (using the npm registry for dependencies). One macOS-only archive/toolchain integration test requires installed Xcode and `ditto`; Linux CI reports that test as skipped. No XCTest suite, Xcode Cloud, TestFlight, or deployment is executed by these checks.
+The repository uses its own planner to run a complete, inventory-checked test matrix. Checks compile strict TypeScript, execute regression tests, audit export patterns, and install a packed tarball into a temporary project (using the npm registry for dependencies). Two macOS-only archive/toolchain integration tests require installed Xcode (and `ditto` for archiving). Both pass locally; Linux CI reports 58 passing tests and these two explicit skips. No XCTest suite, Xcode Cloud, TestFlight, or deployment is executed by these checks.
 
 [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [MIT license](LICENSE)
